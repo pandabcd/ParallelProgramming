@@ -3,10 +3,6 @@
 fc = 5
 f = open("FC_" + str(fc) + "_" + str(fc) + ".txt", "w")
 
-for i in range(0, fc*fc, fc):
-	f.write(str(i) + " ")
-
-f.write("\n")
 
 for i in range(1,fc+1):
 	for j in range(1,fc+1):

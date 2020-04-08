@@ -9,6 +9,8 @@
 #include<cooperative_groups.h>
 #include<cuda_runtime_api.h>
 
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
 
 using namespace std;
 
@@ -17,85 +19,124 @@ using namespace std;
 #define num_vertices1 5
 #define num_vertices2 5
 
+__device__ unsigned int d_degree[num_vertices1+num_vertices2+1];    //Is this required?
+__device__ unsigned int d_flat_adj_list[2*num_edges];
+__device__ unsigned int d_list_ptr[num_vertices1+num_vertices2+2];
 
-// Stores edges
-__device__ int d_edges_u[num_edges];
-__device__ int d_edges_v[num_edges];
+__device__ unsigned int d_matched_vertices[num_vertices1+num_vertices2+1]={0};
+__device__ unsigned int d_matched_edges[2*num_edges]={0};
+__device__ unsigned int d_visited[num_vertices1+num_vertices2+1]={0};
+		
 
-// __device__ unsigned int d_visited_1[num_vertices1]={0};
-
-__device__ unsigned int d_visited_2[num_vertices2]={0};  //visited or not
-__device__ unsigned int d_matched[num_edges]={0};		// matched or not
-
-__device__ unsigned int d_first_edge[num_vertices1+1];  // making vertex disjoint
 
 
 __global__ 
 void get_approx_matching(){
 	int tid = blockIdx.x*1024 + threadIdx.x;
-	if(tid<num_edges){
-		// printf("[%d] %d \n", tid, d_first_edge[tid]);
-		for(int i=d_first_edge[tid]; i<d_first_edge[tid+1];i++)
-		{
-			int visited2 = atomicExch(&d_visited_2[d_edges_v[i]], 1);
-			if(!visited2)
+
+	if(tid<num_vertices1){
+
+		printf("[%d]Looking form %d to %d \n" ,tid, d_list_ptr[tid+1], d_list_ptr[tid+2]);
+		for(int i=d_list_ptr[tid+1];i<d_list_ptr[tid+2];i++){
+
+
+			// Problem in here.... You can do it :)
+			printf("[%d]working %d \n",tid, d_list_ptr[tid+1]);
+			int visited = atomicExch(&d_visited[d_list_ptr[tid+1]], 1);
+			printf("inside %d \n", visited);
+			if(!visited)
 			{
-				printf("Pairing %d with %d (edge number %d)\n", d_edges_u[i], d_edges_v[i], i);
-				d_matched[i] = 1;
+				printf("Pairing %d with %d \n", tid, d_flat_adj_list[d_list_ptr[tid+1]]);
+				// d_matched[i] = 1;
 				return;
 			}
 		}
+
 	}
-	
+}
+
+
+__global__
+void vertex_disjoint_bfs(){
+
 }
 
 
 int main(){
 	int fc = num_vertices1;
-	int set1[num_vertices1], set2[num_vertices2];
-	int first_edge[num_vertices1+1]; // one artifial index at last for easier coding
-	int edges_u[num_edges], edges_v[num_edges];
-	int matched[num_edges]={0};
+	
+	int degree[num_vertices1+num_vertices2+1]={0};      //store degree of each vertex
+	int flat_adj_list[2*num_edges];
+	int list_ptr[num_vertices1+num_vertices2+2];        //1-indexed and extra element at the end for easy size access
+	int list_ptr_copy[num_vertices1+num_vertices2+2];    // Temporrary stuff, gotta sleep
+	// Only required for results
+	int matched_vertices[num_vertices1+num_vertices2+1]={0};
+	int matched_edges[2*num_edges]={0};
 
+	int edges_u[num_edges], edges_v[num_edges];			// Make this dynamic memory and free it once we have our 2 pass initialisation phase
+	
+
+	
 	ifstream fin;
     fin.open("FC_" + to_string(fc) + "_" + to_string(fc) + ".txt", ios::in);
     int u, v;
-
-    for(int i=0;i<num_vertices1;i++){
-    	fin >> first_edge[i];
-    }
-    first_edge[num_vertices1] = num_edges;
 
     cout << "Printing all the edges: \n";
 
     // Vertices with 0 edges are implicitly ignored while reading the file itself
     for(int i=0;i<num_edges;i++){
             fin >> u >> v;
-            // Check if not a repeat, then add
-            // set1.push_back(u);
-            // set2.push_back(v);
+            cout << u << " " << v <<endl;
             edges_u[i] = u;
             edges_v[i] = v;
-            cout << u << " " << v <<endl;
+            degree[u]++;
+            degree[v]++;
     }
-    
-    cudaMemcpyToSymbol(d_first_edge, first_edge, (num_vertices1+1)*sizeof(int),0,cudaMemcpyHostToDevice);
-	cudaMemcpyToSymbol(d_edges_u, edges_u, num_edges*sizeof(int), 0, cudaMemcpyHostToDevice);
-	cudaMemcpyToSymbol(d_edges_v, edges_v, num_edges*sizeof(int), 0, cudaMemcpyHostToDevice);
+
+    // Get pointer to adjacency list using prefix sum (no opti here since other parts are more complex anyway)
+    // Index 0 will never be used.... the last elem
+    list_ptr[1] = 0;
+    list_ptr_copy[1] = list_ptr[1];
+    for(int i=2;i<=num_vertices1+num_vertices2;i++){
+    	list_ptr[i] = list_ptr[i-1] + degree[i-1];
+    	list_ptr_copy[i] = list_ptr[i];
+    }
+    list_ptr[num_vertices1+num_vertices2+1] = 2*num_edges;       //For easy coding
+    list_ptr_copy[num_vertices1+num_vertices2+1] = 2*num_edges;
 
 
+
+    for(int i=0;i<num_edges;i++){
+    	flat_adj_list[list_ptr_copy[edges_u[i]]] = edges_v[i];
+    	flat_adj_list[list_ptr_copy[edges_v[i]]] = edges_u[i];
+    	list_ptr_copy[edges_u[i]]++;
+    	list_ptr_copy[edges_v[i]]++;
+    }
+
+    cout << "Printing flat adjacency list: " << endl;
+    for(int i=0;i<2*num_edges;i++){
+    	cout << flat_adj_list[i] << endl;
+    }
+
+   
+    cudaMemcpyToSymbol(d_degree, degree, (num_vertices1+num_vertices2+1)*sizeof(int),0,cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(d_flat_adj_list, flat_adj_list, (2*num_edges)*sizeof(int),0,cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(d_list_ptr, list_ptr, (num_vertices1+num_vertices2+2)*sizeof(int),0,cudaMemcpyHostToDevice);
+	
+    cout<< list_ptr[0];
+    cout<<endl<<endl;
 	get_approx_matching<<<1, num_threads>>>();
 
-	cudaMemcpyFromSymbol(matched, d_matched, num_edges*sizeof(int), 0, cudaMemcpyDeviceToHost);
+	// cudaMemcpyFromSymbol(matched, d_matched, num_edges*sizeof(int), 0, cudaMemcpyDeviceToHost);
 
 
 	cudaDeviceSynchronize();
-	cout << "Printing matched edges"<<endl;
-	for(int i=0;i<num_edges;i++){
-		if(matched[i]){
-			cout << edges_u[i] << " " << edges_v[i] << endl;
-		}
-	}
+	// cout << "Printing matched edges"<<endl;
+	// for(int i=0;i<num_edges;i++){
+	// 	if(matched[i]){
+	// 		cout << edges_u[i] << " " << edges_v[i] << endl;
+	// 	}
+	// }
 
 	
 	return 0;
