@@ -1,6 +1,6 @@
 # fc = full connectivity
 # Format - ith index of First row tells about the index of first edge i.
-fc = 2
+fc = 5
 f = open("FC_" + str(fc) + "_" + str(fc) + ".txt", "w")
 
 for i in range(0, fc*fc, fc):
