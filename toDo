@@ -1,0 +1,17 @@
+CudaMemcpyAsync-----Parallelise first cuda call and something else(e.g approximation algorithm)
+Thrust library as stl
+
+
+ToRead-
+Pinned Memory
+
+Report-
+We have to take vertex disjoint stuff and not edge disjoint...
+Theoretical v/s effective bandwidth
+Write about Amdahl's law in report
+Optimization not done(See section 9.1)- 
+Overlapping computation(GPU and CPU) and data transfers--- Hard in our case
+Staged concurrent copy and execute --- COuld be done
+Zero Copy for integrated GPU and CPU
+
+9.2.1.3. Effects of Misaligned Accesses

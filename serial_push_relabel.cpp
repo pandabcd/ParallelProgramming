@@ -287,7 +287,7 @@ int main()
         for(int j=0;j<fc;j++){
             fin >> u >> v;
             g.addEdge(u,v,1);
-            cout << u+1 << " " << v+1 <<endl;
+            cout << u << " " << v <<endl;
         }
     }
    
