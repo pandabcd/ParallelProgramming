@@ -6,6 +6,7 @@ ToRead-
 Pinned Memory
 
 Report-
+Graph taken is  Erdös-Rényi model G(n,p).... n vertices and each edge is there with probability p.
 We have to take vertex disjoint stuff and not edge disjoint because edge disjoint way cannot have atomic algos...
 We cannot use pure adjacency list form as in normal graphs due to the limitation of CUDA(including thrust library) not supporting vectors(or array) or vectors in its pure form without being very inefficient.
 Using 1-d vector instead of 2-d vectors since it is more efficient

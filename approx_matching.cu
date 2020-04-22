@@ -29,24 +29,24 @@ __device__ unsigned int d_visited[num_vertices1+num_vertices2+1]={0};
 		
 
 
-
+// Every vertex gets a node
 __global__ 
 void get_approx_matching(){
 	int tid = blockIdx.x*1024 + threadIdx.x;
+	int vertex = tid + 1;	// The world is 1-indexed
+	if(vertex<=num_vertices1){
 
-	if(tid<num_vertices1){
-
-		printf("[%d]Looking form %d to %d \n" ,tid, d_list_ptr[tid+1], d_list_ptr[tid+2]);
-		for(int i=d_list_ptr[tid+1];i<d_list_ptr[tid+2];i++){
+		printf("[%d]Looking from %d to %d \n" ,tid, d_list_ptr[vertex], d_list_ptr[vertex+1]);
+		for(int i=d_list_ptr[vertex];i<d_list_ptr[vertex+1];i++){
 
 
 			// Problem in here.... You can do it :)
-			printf("[%d]working %d \n",tid, d_list_ptr[tid+1]);
-			int visited = atomicExch(&d_visited[d_list_ptr[tid+1]], 1);
+			printf("[%d]working %d \n",tid, d_list_ptr[vertex]);
+			int visited = atomicExch(&d_visited[d_list_ptr[vertex]], 1);    // Index of connected vertex
 			printf("inside %d \n", visited);
 			if(!visited)
 			{
-				printf("Pairing %d with %d \n", tid, d_flat_adj_list[d_list_ptr[tid+1]]);
+				printf("Pairing %d with %d \n", vertex, d_flat_adj_list[d_list_ptr[vertex]]);
 				// d_matched[i] = 1;
 				return;
 			}
@@ -67,12 +67,13 @@ int main(){
 	
 	int degree[num_vertices1+num_vertices2+1]={0};      //store degree of each vertex
 	int flat_adj_list[2*num_edges];
-	int list_ptr[num_vertices1+num_vertices2+2];        //1-indexed and extra element at the end for easy size access
+	int list_ptr[num_vertices1+num_vertices2+2];        //1-indexed and extra element at the end for easy size access  // Pointer to the start of adjacency list
 	int list_ptr_copy[num_vertices1+num_vertices2+2];    // Temporrary stuff, gotta sleep
 	// Only required for results
 	int matched_vertices[num_vertices1+num_vertices2+1]={0};
 	int matched_edges[2*num_edges]={0};
 
+	// to and from of edges
 	int edges_u[num_edges], edges_v[num_edges];			// Make this dynamic memory and free it once we have our 2 pass initialisation phase
 	
 
@@ -113,8 +114,12 @@ int main(){
     	list_ptr_copy[edges_v[i]]++;
     }
 
-    cout << "Printing flat adjacency list: " << endl;
-    for(int i=0;i<2*num_edges;i++){
+    cout << "Printing flat adjacency list for 4: " << endl;
+    // for(int i=0;i<2*num_edges;i++){
+    // 	cout << flat_adj_list[i] << endl;
+    // }
+
+    for(int i=list_ptr[4];i<list_ptr[5];i++){
     	cout << flat_adj_list[i] << endl;
     }
 
@@ -123,7 +128,7 @@ int main(){
     cudaMemcpyToSymbol(d_flat_adj_list, flat_adj_list, (2*num_edges)*sizeof(int),0,cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(d_list_ptr, list_ptr, (num_vertices1+num_vertices2+2)*sizeof(int),0,cudaMemcpyHostToDevice);
 	
-    cout<< list_ptr[0];
+    // cout<< list_ptr[0];
     cout<<endl<<endl;
 	get_approx_matching<<<1, num_threads>>>();
 
