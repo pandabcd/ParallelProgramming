@@ -19,13 +19,13 @@ using namespace std;
 #define num_vertices1 5
 #define num_vertices2 5
 
-__device__ unsigned int d_degree[num_vertices1+num_vertices2+1];    //Is this required?
-__device__ unsigned int d_flat_adj_list[2*num_edges];
-__device__ unsigned int d_list_ptr[num_vertices1+num_vertices2+2];
+__device__ unsigned int d_degree[num_vertices1+num_vertices2+1];    //degree of vertices  //Is this required?
+__device__ unsigned int d_flat_adj_list[2*num_edges];				//adjacency list flattened
+__device__ unsigned int d_list_ptr[num_vertices1+num_vertices2+2];	//start indices of every vertex in adj_list
 
-__device__ unsigned int d_matched_vertices[num_vertices1+num_vertices2+1]={0};
-__device__ unsigned int d_matched_edges[2*num_edges]={0};
-__device__ unsigned int d_visited[num_vertices1+num_vertices2+1]={0};
+__device__ unsigned int d_matched_vertices[num_vertices1+num_vertices2+1]={0};	// whether the vertex is matched
+__device__ unsigned int d_matched_edges[2*num_edges]={0};						//whether the edges is matched
+__device__ unsigned int d_visited[num_vertices1+num_vertices2+1]={0};			// whether the vertex has been visited
 		
 
 
@@ -36,20 +36,26 @@ void get_approx_matching(){
 	int vertex = tid + 1;	// The world is 1-indexed
 	if(vertex<=num_vertices1){
 
-		printf("[%d]Looking from %d to %d \n" ,tid, d_list_ptr[vertex], d_list_ptr[vertex+1]);
+		int visited = atomicExch(&d_visited[3], 1);    
+		// printf("inside %d \n", visited);
+		// printf("[%d]Looking from %d to %d \n" ,tid, d_list_ptr[vertex], d_list_ptr[vertex+1]);
 		for(int i=d_list_ptr[vertex];i<d_list_ptr[vertex+1];i++){
 
 
 			// Problem in here.... You can do it :)
-			printf("[%d]working %d \n",tid, d_list_ptr[vertex]);
-			int visited = atomicExch(&d_visited[d_list_ptr[vertex]], 1);    // Index of connected vertex
-			printf("inside %d \n", visited);
+			// printf("[%d]working %d \n", vertex, i);
+			int v = d_flat_adj_list[i];									// Index of connected vertex
+			int visited = atomicExch(&d_visited[v], 1);    
+			// printf("Visited value of vertex %d is %d \n", v , visited);
+			
 			if(!visited)
 			{
-				printf("Pairing %d with %d \n", vertex, d_flat_adj_list[d_list_ptr[vertex]]);
+				printf("Pairing %d with %d  which is index %d  \n", vertex, v, i);
 				// d_matched[i] = 1;
+				visited = atomicExch(&d_visited[i], 1);    
 				return;
 			}
+			
 		}
 
 	}
@@ -114,14 +120,14 @@ int main(){
     	list_ptr_copy[edges_v[i]]++;
     }
 
-    cout << "Printing flat adjacency list for 4: " << endl;
-    // for(int i=0;i<2*num_edges;i++){
-    // 	cout << flat_adj_list[i] << endl;
-    // }
-
-    for(int i=list_ptr[4];i<list_ptr[5];i++){
+    cout << "Printing flat adjacency list: " << endl;
+    for(int i=0;i<2*num_edges;i++){
     	cout << flat_adj_list[i] << endl;
     }
+
+    // for(int i=list_ptr[4];i<list_ptr[5];i++){
+    // 	cout << flat_adj_list[i] << endl;
+    // }
 
    
     cudaMemcpyToSymbol(d_degree, degree, (num_vertices1+num_vertices2+1)*sizeof(int),0,cudaMemcpyHostToDevice);
