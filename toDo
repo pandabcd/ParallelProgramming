@@ -16,5 +16,14 @@ Optimization not done(See section 9.1)-
 Overlapping computation(GPU and CPU) and data transfers--- Hard in our case
 Staged concurrent copy and execute --- COuld be done
 Zero Copy for integrated GPU and CPU
+The idea of flattening adjacency list as thought before in paper - Accelerating Large Graph Algorithms on the GPU Using CUDA ;  Pawan Harish and P.J. Narayanan, IIIT-H
+
 
 9.2.1.3. Effects of Misaligned Accesses
+
+
+ZZZZ-
+thrust vectors can only be used within host code
+
+
+We need to do parallel BFS from each node.... max level list size for every vertex = O(V)

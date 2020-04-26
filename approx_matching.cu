@@ -9,8 +9,9 @@
 #include<cooperative_groups.h>
 #include<cuda_runtime_api.h>
 
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
+
+// #include <thrust/host_vector.h>
+// #include <thrust/device_vector.h>
 
 using namespace std;
 
@@ -19,40 +20,47 @@ using namespace std;
 #define num_vertices1 5
 #define num_vertices2 5
 
+__device__ const int frontier_size = 5;    // Maximum of size of num_vertices1, num_vertices26h
+
+
+// Some of these can go to constant memory, check that
+// But constant memory is 65KB while global memory is 4040MB, so there is that limitation
 __device__ unsigned int d_degree[num_vertices1+num_vertices2+1];    //degree of vertices  //Is this required?
 __device__ unsigned int d_flat_adj_list[2*num_edges];				//adjacency list flattened
 __device__ unsigned int d_list_ptr[num_vertices1+num_vertices2+2];	//start indices of every vertex in adj_list
 
 __device__ unsigned int d_matched_vertices[num_vertices1+num_vertices2+1]={0};	// whether the vertex is matched
-__device__ unsigned int d_matched_edges[2*num_edges]={0};						//whether the edges is matched
 __device__ unsigned int d_visited[num_vertices1+num_vertices2+1]={0};			// whether the vertex has been visited
-		
+__device__ unsigned int d_matched_with[num_vertices1+num_vertices2+1] = {0};
+// __device__ unsigned int d_matched_edges[2*num_edges]={0};						//whether the edges is matched
 
 
 // Every vertex gets a node
 __global__ 
 void get_approx_matching(){
 	int tid = blockIdx.x*1024 + threadIdx.x;
-	int vertex = tid + 1;	// The world is 1-indexed
-	if(vertex<=num_vertices1){
+	int vertex1 = tid + 1;	// The world is 1-indexed
+	if(vertex1<=num_vertices1){
 
 		int visited = atomicExch(&d_visited[3], 1);    
 		// printf("inside %d \n", visited);
 		// printf("[%d]Looking from %d to %d \n" ,tid, d_list_ptr[vertex], d_list_ptr[vertex+1]);
-		for(int i=d_list_ptr[vertex];i<d_list_ptr[vertex+1];i++){
+		for(int i=d_list_ptr[vertex1];i<d_list_ptr[vertex1+1];i++){
 
 
 			// Problem in here.... You can do it :)
 			// printf("[%d]working %d \n", vertex, i);
-			int v = d_flat_adj_list[i];									// Index of connected vertex
-			int visited = atomicExch(&d_visited[v], 1);    
+			int vertex2 = d_flat_adj_list[i];									// Index of connected vertex
+			int visited = atomicExch(&d_visited[vertex2], 1);    
 			// printf("Visited value of vertex %d is %d \n", v , visited);
 			
 			if(!visited)
 			{
-				printf("Pairing %d with %d  which is index %d  \n", vertex, v, i);
-				// d_matched[i] = 1;
-				visited = atomicExch(&d_visited[i], 1);    
+				printf("Pairing %d with %d  which is index %d  \n", vertex1, vertex2, i);
+				d_matched_vertices[vertex1] = 1;   // Marking the vertex as matched
+				d_matched_vertices[vertex2] = 1;
+				d_matched_with[vertex1] = vertex2;
+				d_matched_with[vertex2] = vertex1;
 				return;
 			}
 			
@@ -62,12 +70,41 @@ void get_approx_matching(){
 }
 
 
-__global__
-void vertex_disjoint_bfs(){
+__device__
+void clear_visited_list(){
+	int tid = blockIdx.x*1024 + threadIdx.x;
+	int vertex1 = tid + 1;
 
+	if(vertex1<=num_vertices1){
+		d_visited[vertex1] = 0;
+	}
 }
 
+__global__
+void vertex_disjoint_bfs(){
+	clear_visited_list();
 
+	int tid = blockIdx.x*1024 + threadIdx.x;
+	int vertex1 = tid + 1;
+
+	if(vertex1<=num_vertices1){
+		//If already matched
+		if(d_matched_vertices[vertex1]==1){
+			return;
+		}
+
+		// If already visited by some other thread
+		int visited1 = atomicExch(&d_visited[vertex1], 1);
+		if(visited1){
+			return;
+		}
+
+		// If not already matched and no thread has visited this
+		int frontiers[frontier_size];
+	}
+}
+
+//Vertices are 1-indexed(0th vertex will be source in future expansions) while adjacency list is 0 indexed
 int main(){
 	int fc = num_vertices1;
 	
@@ -137,6 +174,7 @@ int main(){
     // cout<< list_ptr[0];
     cout<<endl<<endl;
 	get_approx_matching<<<1, num_threads>>>();
+	vertex_disjoint_bfs<<<1, num_threads>>>();   // Call this inside the first kernel call only
 
 	// cudaMemcpyFromSymbol(matched, d_matched, num_edges*sizeof(int), 0, cudaMemcpyDeviceToHost);
 
