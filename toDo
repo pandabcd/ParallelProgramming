@@ -17,6 +17,8 @@ Overlapping computation(GPU and CPU) and data transfers--- Hard in our case
 Staged concurrent copy and execute --- COuld be done
 Zero Copy for integrated GPU and CPU
 The idea of flattening adjacency list as thought before in paper - Accelerating Large Graph Algorithms on the GPU Using CUDA ;  Pawan Harish and P.J. Narayanan, IIIT-H
+We cannot find two unmatched edge and then unmatched edge again in bfs because it would already be found by the approx. algo.
+All vertices except first and last would be matched in the augmenting path finding scheme whereas for edges it would be alternate matched and unmatched.
 
 
 9.2.1.3. Effects of Misaligned Accesses

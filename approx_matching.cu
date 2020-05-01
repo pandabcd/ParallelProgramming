@@ -31,6 +31,7 @@ __device__ unsigned int d_list_ptr[num_vertices1+num_vertices2+2];	//start indic
 
 __device__ unsigned int d_matched_vertices[num_vertices1+num_vertices2+1]={0};	// whether the vertex is matched
 __device__ unsigned int d_visited[num_vertices1+num_vertices2+1]={0};			// whether the vertex has been visited
+__device__ unsigned int d_frontier[num_vertices1+num_vertices2+1]={0};			// Is it in the frontier list?
 __device__ unsigned int d_matched_with[num_vertices1+num_vertices2+1] = {0};
 // __device__ unsigned int d_matched_edges[2*num_edges]={0};						//whether the edges is matched
 
@@ -75,14 +76,22 @@ void clear_visited_list(){
 	int tid = blockIdx.x*1024 + threadIdx.x;
 	int vertex1 = tid + 1;
 
-	if(vertex1<=num_vertices1){
+	if(vertex1<=num_vertices1 + num_vertices2){
 		d_visited[vertex1] = 0;
 	}
 }
 
-__global__
-void vertex_disjoint_bfs(){
-	clear_visited_list();
+__device__
+void clear_frontier_list(){
+	int tid = blockIdx.x*1024 + threadIdx.x;
+	int vertex1 = tid + 1;
+
+	if(vertex1<=num_vertices1 + num_vertices2){
+		d_frontier[vertex1] = 0;
+	}
+}
+
+clear_visited_list();
 
 	int tid = blockIdx.x*1024 + threadIdx.x;
 	int vertex1 = tid + 1;
@@ -101,8 +110,28 @@ void vertex_disjoint_bfs(){
 
 		// If not already matched and no thread has visited this
 		int frontiers[frontier_size];
-	}
+
+
+
+__global__ bfs_util(){
+	clear_visited_list();
+	clear_frontier_list();
+	// add fairness by using different indices
+	is_frontier[1] = 1;
+	num_paths = 0;
+	bfs();
+
 }
+
+__global__
+void bfs(){
+	int tid = blockIdx.x*1024 + threadIdx.x;
+	int vertex = tid + 1;
+
+	if(vertex1<=num_vertices1+num_vertices2){
+
+	}
+} 
 
 //Vertices are 1-indexed(0th vertex will be source in future expansions) while adjacency list is 0 indexed
 int main(){
@@ -190,3 +219,39 @@ int main(){
 	
 	return 0;
 }
+
+
+
+// __device__
+// void clear_visited_list(){
+// 	int tid = blockIdx.x*1024 + threadIdx.x;
+// 	int vertex1 = tid + 1;
+
+// 	if(vertex1<=num_vertices1){
+// 		d_visited[vertex1] = 0;
+// 	}
+// }
+
+// __global__
+// void vertex_disjoint_bfs(){
+// 	clear_visited_list();
+
+// 	int tid = blockIdx.x*1024 + threadIdx.x;
+// 	int vertex1 = tid + 1;
+
+// 	if(vertex1<=num_vertices1){
+// 		//If already matched
+// 		if(d_matched_vertices[vertex1]==1){
+// 			return;
+// 		}
+
+// 		// If already visited by some other thread
+// 		int visited1 = atomicExch(&d_visited[vertex1], 1);
+// 		if(visited1){
+// 			return;
+// 		}
+
+// 		// If not already matched and no thread has visited this
+// 		int frontiers[frontier_size];
+// 	}
+// }

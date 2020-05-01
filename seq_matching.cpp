@@ -8,24 +8,29 @@
 
 using namespace std;
 
-#define num_threads 50
-#define num_edges 25
-#define num_vertices1 5
-#define num_vertices2 5
+// #define num_threads 50
+#define num_edges 4
+#define num_vertices1 2
+#define num_vertices2 2
 
 
 int fc = num_vertices1;
 	
 
 vector<int> adj_list[num_vertices1 + num_vertices2 + 1];
+vector<bool> is_matched_edge[num_vertices1 + num_vertices2 + 1];    // array in the form of adjacency matrix with boolean indicators
+bool is_matched_vertex[num_vertices1 + num_vertices2 + 1] = {0};
 int visited[num_vertices1+num_vertices2+1];
 int bfs_parent[num_vertices1+num_vertices2+1];
+int is_parent_change[num_vertices1+num_vertices2+1];
+int num_aug_paths = 0;
 
 // Only required for results
 // int matched_vertices[num_vertices1+num_vertices2+1]={0};
 // int matched_edges[2*num_edges]={0};
 
 vector<int> frontier;
+int aug_path_end = -1;
 
 void clear_visited(){
 	for(int i=1;i<=num_vertices1+num_vertices2;i++){
@@ -39,42 +44,168 @@ void clear_bfs_parent(){
 	}
 }
 
-void bfs(){
-	cout << "Size of frontier: " << frontier.size() << endl;
+void clear_is_parent_change(){
+	for(int i=1;i<=num_vertices1+num_vertices2;i++){
+		is_parent_change[i] = 0;
+	}
+}
+
+void match_edges(int u, int v){
+	is_matched_edge[u][v] = 1;
+	is_matched_edge[v][u] = 1;
+	is_matched_vertex[u] = 1;
+	is_matched_vertex[v] = 1;
+}
+
+// Unmatching edges also unmatches the vertices since the graph is a matching
+void unmatch_edges(int u, int v){
+	is_matched_edge[u][v] = 0;
+	is_matched_edge[v][u] = 0;
+	is_matched_vertex[u] = 0;
+	is_matched_vertex[v] = 0;
+}
+
+void debug(){
+	match_edges(2,3);
+	// match_edges(3,5);
+}
+
+void print_aug_path(){
+
+}
+
+void update_matchings(){
+	for(int i=1;i<=num_vertices1+num_vertices2;i++){
+		int vertex = i;
+		if(is_parent_change[vertex] == true){
+			
+			cout << "Found aug. path till " << vertex << endl;
+			// There should always be odd number of vertices in aug. path
+			int path_length = 1;
+			int parent = bfs_parent[vertex];
+			while(parent!=vertex){
+				if(path_length%2==1){
+					match_edges(vertex, parent);
+					cout << "Matching " << vertex <<  " and " << parent << endl; 
+				}
+				else{
+					unmatch_edges(vertex, parent);
+					
+					cout << "Unmatching " << vertex <<  " and " << parent << endl;
+				}
+				vertex =  bfs_parent[vertex];
+				parent = bfs_parent[vertex];
+				path_length++;
+				cout << vertex << endl;
+			}
+			
+			cout << ". The path length is: " << path_length << endl;
+			// break;
+		}
+
+		// return here to stop after updating only one path : Important for experiments
+	}
+}
+
+
+// Wanna alternate between unmatched and matched EDGES
+// All VERTICES except the first and the last should be matched
+void bfs(bool binary_level){
+
+	// cout << "Size of frontier: " << frontier.size() << endl;
 	vector<int> next_frontier;
 	if(not frontier.empty()){
+		// cout << "Frontier elements: " ;
+		// for(int i=0;i<frontier.size();i++){
+		// 	cout << frontier[i] << " ";
+		// }
+		// cout << endl;
 		for(int i=0;i<frontier.size();i++){
 
 			int vertex = frontier[i];
-			cout << vertex <<endl;
 			visited[vertex] = true;
-
+		
+			// cout << "Continuining for vertex: " << vertex << endl;
 			for(int j=0;j<adj_list[vertex].size();j++){
 				int neighbor = adj_list[vertex][j];
 
+
 				if(!visited[neighbor]){
+					// We want to alternate between unmatched and matched edges, otherwise we ignore
 					visited[neighbor] = true;
 					bfs_parent[neighbor] = vertex;
-					next_frontier.push_back(neighbor);
+
+					if( binary_level==0 && is_matched_edge[vertex][neighbor]==0 && is_matched_vertex[neighbor]==1 ){
+						// visited[neighbor] = true;
+						// bfs_parent[neighbor] = vertex;
+						next_frontier.push_back(neighbor);
+					}
+
+					// is_matched_vertex is implicitly true since the edge is matched
+					// In level 1, we are only interested in matched edges
+					else if( binary_level==1 && is_matched_edge[vertex][neighbor]==1 ){
+						// cout << "Edge: " << vertex << " " <<neighbor <<endl;
+						// visited[neighbor] = true;
+						// bfs_parent[neighbor] = vertex;
+						next_frontier.push_back(neighbor);
+					}
+
+					// Changing parent change only for this node
+					else if(binary_level==0 && is_matched_edge[vertex][neighbor]==0 && is_matched_vertex[neighbor]==0){
+						cout << "Found a aug. path with " << neighbor << " with parent: " << vertex << endl;
+						// visited[neighbor] = true;
+						// bfs_parent[neighbor] = vertex;
+						is_parent_change[neighbor] = 1;
+						num_aug_paths++ ;
+						return;
+					}
 				}
 			}
 		}
 		frontier.clear();
 		frontier.assign(next_frontier.begin(), next_frontier.end());
-		bfs();
+		// cout << endl;
+		bfs(binary_level = !binary_level);
 	}
 	
 }
 
-void bfs_util(){
+int bfs_util(){
 	clear_visited();
 	clear_bfs_parent();
+	clear_is_parent_change();
 	frontier.clear();
+
 	//Can add fairness here
-	frontier.push_back(1);
-	// cout << "good" << endl;
-	bfs();
+	
+	// Debug
+	debug();
+
+	num_aug_paths = 0;
+	// Special style bfs
+	for(int i=1;i<=num_vertices1;i++){
+		if(!visited[i]){
+			frontier.clear();
+			frontier.push_back(i);
+			bfs(0);
+		}
+		// break;	
+	}
+
+	// cout << "Printing parents: " << endl;
+	// for(int i=1;i<=num_vertices2+num_vertices1;i++){
+	// 	cout << i << " " << bfs_parent[i] <<endl;
+	// }
+
+
+	if(num_aug_paths > 0){
+		// update_matchings();
+	}
+
+	return num_aug_paths;
+
 }
+
 
 
 
@@ -97,11 +228,22 @@ int main(){
             cout << u << " " << v <<endl;
             adj_list[u].push_back(v);
             adj_list[v].push_back(u);
+
+            is_matched_edge[u].push_back(0);
+            is_matched_edge[v].push_back(0);
     }
 
-    bfs_util();
+    int aug_paths = bfs_util();
+    cout << "Number of augmenting paths " << aug_paths << endl;
+    // while(aug_paths>0)
+    // {	
+    // 	aug_paths = bfs_util();
+    // 	cout << "Number of augmenting paths " << aug_paths << endl;
+    // 	break;
+    // }
 
-    for(int i=0;i<num_vertices1+num_vertices2; i++){
+    cout << "BFS parents: " << endl;
+    for(int i=1;i<=num_vertices1+num_vertices2; i++){
     	cout<< i << bfs_parent[i] << endl;
     }
 
