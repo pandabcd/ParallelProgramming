@@ -9,21 +9,22 @@
 using namespace std;
 
 // #define num_threads 50
-#define num_edges 4
-#define num_vertices1 2
-#define num_vertices2 2
+#define num_edges 9
+#define num_vertices1 3
+#define num_vertices2 3
 
 
 int fc = num_vertices1;
 	
 
-vector<int> adj_list[num_vertices1 + num_vertices2 + 1];
-vector<bool> is_matched_edge[num_vertices1 + num_vertices2 + 1];    // array in the form of adjacency matrix with boolean indicators
-bool is_matched_vertex[num_vertices1 + num_vertices2 + 1] = {0};
-int visited[num_vertices1+num_vertices2+1];
-int bfs_parent[num_vertices1+num_vertices2+1];
-int is_parent_change[num_vertices1+num_vertices2+1];
-int num_aug_paths = 0;
+vector<int> adj_list[num_vertices1 + num_vertices2 + 1];			// Do we need this?
+vector<bool> is_matched_edge[num_vertices1 + num_vertices2 + 1];    // Adjacency matrix with boolean indicators
+bool is_matched_vertex[num_vertices1 + num_vertices2 + 1] = {0};	// Is the vertex matched
+
+int visited[num_vertices1+num_vertices2+1] = {0} ;			// Visited array for each vertex
+int bfs_parent[num_vertices1+num_vertices2+1] ;				// Parent of the vertex. Required to find the augmenting path
+int is_parent_change[num_vertices1+num_vertices2+1] = {0};	// Denotes if the parent changed in the last round
+int num_aug_paths = 0;										// Counts number of augmenting paths found
 
 // Only required for results
 // int matched_vertices[num_vertices1+num_vertices2+1]={0};
@@ -66,13 +67,11 @@ void unmatch_edges(int u, int v){
 }
 
 void debug(){
-	match_edges(2,3);
+	match_edges(2,4);
+	match_edges(3,5);
 	// match_edges(3,5);
 }
 
-void print_aug_path(){
-
-}
 
 void update_matchings(){
 	for(int i=1;i<=num_vertices1+num_vertices2;i++){
@@ -136,25 +135,18 @@ void bfs(bool binary_level){
 					bfs_parent[neighbor] = vertex;
 
 					if( binary_level==0 && is_matched_edge[vertex][neighbor]==0 && is_matched_vertex[neighbor]==1 ){
-						// visited[neighbor] = true;
-						// bfs_parent[neighbor] = vertex;
 						next_frontier.push_back(neighbor);
 					}
 
 					// is_matched_vertex is implicitly true since the edge is matched
 					// In level 1, we are only interested in matched edges
 					else if( binary_level==1 && is_matched_edge[vertex][neighbor]==1 ){
-						// cout << "Edge: " << vertex << " " <<neighbor <<endl;
-						// visited[neighbor] = true;
-						// bfs_parent[neighbor] = vertex;
 						next_frontier.push_back(neighbor);
 					}
 
 					// Changing parent change only for this node
 					else if(binary_level==0 && is_matched_edge[vertex][neighbor]==0 && is_matched_vertex[neighbor]==0){
 						cout << "Found a aug. path with " << neighbor << " with parent: " << vertex << endl;
-						// visited[neighbor] = true;
-						// bfs_parent[neighbor] = vertex;
 						is_parent_change[neighbor] = 1;
 						num_aug_paths++ ;
 						return;
@@ -199,7 +191,7 @@ int bfs_util(){
 
 
 	if(num_aug_paths > 0){
-		// update_matchings();
+		update_matchings();
 	}
 
 	return num_aug_paths;
@@ -207,15 +199,7 @@ int bfs_util(){
 }
 
 
-
-
-
-
-
 int main(){
-	
-
-	
 	ifstream fin;
     fin.open("FC_" + to_string(fc) + "_" + to_string(fc) + ".txt", ios::in);
     int u, v;
