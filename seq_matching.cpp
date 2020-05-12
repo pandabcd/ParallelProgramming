@@ -9,9 +9,9 @@
 using namespace std;
 
 // #define num_threads 50
-#define num_edges 25
-#define num_vertices1 5
-#define num_vertices2 5
+#define num_edges 1000000
+#define num_vertices1 1000
+#define num_vertices2 1000
 
 
 int fc = num_vertices1;
@@ -156,17 +156,17 @@ void bfs(bool binary_level){
 	// cout << "Size of frontier: " << frontier.size() << endl;
 	vector<int> next_frontier;
 	if(not frontier.empty()){
-		cout << "Frontier elements: " ;
-		for(int i=0;i<frontier.size();i++){
-			cout << frontier[i] << " ";
-		}
-		cout << endl;
+		// cout << "Frontier elements: " ;
+		// for(int i=0;i<frontier.size();i++){
+		// 	cout << frontier[i] << " ";
+		// }
+		// cout << endl;
 		for(int i=0;i<frontier.size();i++){
 
 			int vertex = frontier[i];
 			visited[vertex] = true;
 		
-			cout << "Continuining for vertex: " << vertex << endl;
+			// cout << "Continuining for vertex: " << vertex << endl;
 			bool found_path = false;
 			for(int j=0;j<adj_list[vertex].size();j++){
 				if(found_path)
@@ -177,7 +177,7 @@ void bfs(bool binary_level){
 				if(!visited[neighbor]){
 					// We want to alternate between unmatched and matched edges, otherwise we ignore
 					visited[neighbor] = true;
-					cout << vertex << " " << neighbor << endl;
+					// cout << vertex << " " << neighbor << endl;
 
 					bfs_parent[neighbor] = vertex;
 
@@ -281,7 +281,7 @@ int main(){
     // }
 
     for(int i=1;i<=num_vertices1+num_vertices2;i++){
-    	for(int j=1;j<=num_vertices1+num_vertices2;j++){
+    	for(int j=1;j<=num_vertices1+num_vertices2+1;j++){
     		is_matched_edge[i].push_back(0);
     	}
     }
@@ -294,6 +294,8 @@ int main(){
     int x = check_matching();
     cout << "Total matches before running code: " << x << endl;
     
+    // exit(0);
+
     int aug_paths = bfs_util();
     
     cout << "Main : Number of augmenting paths " << aug_paths << endl;
@@ -305,15 +307,14 @@ int main(){
     }
 
     x = check_matching();
-    cout << "Total matches " << x << endl;
+    cout << "Total matches " << x/2 << endl;
 
-    cout << "BFS parents: " << endl;
-    for(int i=1;i<=num_vertices1+num_vertices2; i++){
-    	cout<< i << partner_vertex[i] << endl;
-    }
+    // cout << "Matchings: " << endl;
+    // for(int i=1;i<=num_vertices1+num_vertices2; i++){
+    // 	cout<< i << " " << partner_vertex[i] << endl;
+    // }
 
-    // int total_matched = check_matching();
-    // cout << "Total number of matched vertices are: " << total_matched ;
+    
 
 
 }
