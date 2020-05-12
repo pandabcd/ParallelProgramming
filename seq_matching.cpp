@@ -9,9 +9,9 @@
 using namespace std;
 
 // #define num_threads 50
-#define num_edges 9
-#define num_vertices1 3
-#define num_vertices2 3
+#define num_edges 25
+#define num_vertices1 5
+#define num_vertices2 5
 
 
 int fc = num_vertices1;
@@ -20,6 +20,7 @@ int fc = num_vertices1;
 vector<int> adj_list[num_vertices1 + num_vertices2 + 1];			// Do we need this?
 vector<bool> is_matched_edge[num_vertices1 + num_vertices2 + 1];    // Adjacency matrix with boolean indicators
 bool is_matched_vertex[num_vertices1 + num_vertices2 + 1] = {0};	// Is the vertex matched
+int partner_vertex[num_vertices1 + num_vertices2 + 1];				// Get the vertex with which this vertex is matched. Initialised as -1  
 
 int visited[num_vertices1+num_vertices2+1] = {0} ;			// Visited array for each vertex
 int bfs_parent[num_vertices1+num_vertices2+1] ;				// Parent of the vertex. Required to find the augmenting path
@@ -33,6 +34,31 @@ int num_aug_paths = 0;										// Counts number of augmenting paths found
 vector<int> frontier;
 int aug_path_end = -1;
 
+// Checks if the matching is correct and also returns the total number of vertices matched
+int check_matching(){
+	int total_matched = 0;
+	for(int i=1;i<=num_vertices1+num_vertices2;i++){
+		int vertex = i;
+		int num_matched = 0;
+		for(int j=0;j<adj_list[vertex].size();j++){
+			int neighbor = adj_list[vertex][j];
+			if(is_matched_edge[vertex][neighbor]){
+				cout << vertex << " " << neighbor <<endl;
+				num_matched++;
+			}
+		}
+		if(num_matched==1){
+			total_matched++;
+		}
+		if(num_matched>1){
+			cout << vertex << endl;
+			cout << "Error! Not a matching!";
+			exit(0);
+		}
+	}
+	return total_matched;
+}
+
 void clear_visited(){
 	for(int i=1;i<=num_vertices1+num_vertices2;i++){
 		visited[i] = 0;
@@ -42,6 +68,12 @@ void clear_visited(){
 void clear_bfs_parent(){
 	for(int i=1;i<=num_vertices1+num_vertices2;i++){
 		bfs_parent[i] = i;
+	}
+}
+
+void initialise_partner_vertex(){
+	for(int i=1;i<=num_vertices1+num_vertices2;i++){
+		partner_vertex[i] = -1;
 	}
 }
 
@@ -56,6 +88,8 @@ void match_edges(int u, int v){
 	is_matched_edge[v][u] = 1;
 	is_matched_vertex[u] = 1;
 	is_matched_vertex[v] = 1;
+	partner_vertex[u] = v;
+	partner_vertex[v] = u;
 }
 
 // Unmatching edges also unmatches the vertices since the graph is a matching
@@ -64,12 +98,19 @@ void unmatch_edges(int u, int v){
 	is_matched_edge[v][u] = 0;
 	is_matched_vertex[u] = 0;
 	is_matched_vertex[v] = 0;
+	partner_vertex[u] = -1;
+	partner_vertex[v] = -1;
 }
 
 void debug(){
-	match_edges(2,4);
-	match_edges(3,5);
-	// match_edges(3,5);
+	// match_edges(7,2);
+	// // match_edges(2,8);
+	// match_edges(3,8);
+	// // match_edges(3,9);
+
+	// match_edges(10,5);
+	// // match_edges(5,11);
+	// match_edges(11,6);
 }
 
 
@@ -78,27 +119,28 @@ void update_matchings(){
 		int vertex = i;
 		if(is_parent_change[vertex] == true){
 			
-			cout << "Found aug. path till " << vertex << endl;
+			// cout << "Found aug. path till " << vertex << endl;
 			// There should always be odd number of vertices in aug. path
 			int path_length = 1;
 			int parent = bfs_parent[vertex];
 			while(parent!=vertex){
+				// cout << vertex << " " <<parent << endl;
 				if(path_length%2==1){
 					match_edges(vertex, parent);
-					cout << "Matching " << vertex <<  " and " << parent << endl; 
+					// cout << "Matching " << vertex <<  " and " << parent << endl; 
 				}
 				else{
 					unmatch_edges(vertex, parent);
 					
-					cout << "Unmatching " << vertex <<  " and " << parent << endl;
+					// cout << "Unmatching " << vertex <<  " and " << parent << endl;
 				}
 				vertex =  bfs_parent[vertex];
 				parent = bfs_parent[vertex];
 				path_length++;
-				cout << vertex << endl;
+				// cout << vertex << " " << parent << endl;
 			}
 			
-			cout << ". The path length is: " << path_length << endl;
+			// cout << ". The path length is: " << path_length << endl;
 			// break;
 		}
 
@@ -114,24 +156,29 @@ void bfs(bool binary_level){
 	// cout << "Size of frontier: " << frontier.size() << endl;
 	vector<int> next_frontier;
 	if(not frontier.empty()){
-		// cout << "Frontier elements: " ;
-		// for(int i=0;i<frontier.size();i++){
-		// 	cout << frontier[i] << " ";
-		// }
-		// cout << endl;
+		cout << "Frontier elements: " ;
+		for(int i=0;i<frontier.size();i++){
+			cout << frontier[i] << " ";
+		}
+		cout << endl;
 		for(int i=0;i<frontier.size();i++){
 
 			int vertex = frontier[i];
 			visited[vertex] = true;
 		
-			// cout << "Continuining for vertex: " << vertex << endl;
+			cout << "Continuining for vertex: " << vertex << endl;
+			bool found_path = false;
 			for(int j=0;j<adj_list[vertex].size();j++){
-				int neighbor = adj_list[vertex][j];
+				if(found_path)
+					break;
 
+				int neighbor = adj_list[vertex][j];
 
 				if(!visited[neighbor]){
 					// We want to alternate between unmatched and matched edges, otherwise we ignore
 					visited[neighbor] = true;
+					cout << vertex << " " << neighbor << endl;
+
 					bfs_parent[neighbor] = vertex;
 
 					if( binary_level==0 && is_matched_edge[vertex][neighbor]==0 && is_matched_vertex[neighbor]==1 ){
@@ -142,13 +189,17 @@ void bfs(bool binary_level){
 					// In level 1, we are only interested in matched edges
 					else if( binary_level==1 && is_matched_edge[vertex][neighbor]==1 ){
 						next_frontier.push_back(neighbor);
+						// If I have found a path to the next level; I have to break
+						// found_path = 1;
+						return;
 					}
 
 					// Changing parent change only for this node
 					else if(binary_level==0 && is_matched_edge[vertex][neighbor]==0 && is_matched_vertex[neighbor]==0){
-						cout << "Found a aug. path with " << neighbor << " with parent: " << vertex << endl;
+						// cout << "Found a aug. path with " << neighbor << " with parent: " << vertex << endl;
 						is_parent_change[neighbor] = 1;
 						num_aug_paths++ ;
+						// remove this return so that multiple paths can be found 
 						return;
 					}
 				}
@@ -171,7 +222,7 @@ int bfs_util(){
 	//Can add fairness here
 	
 	// Debug
-	debug();
+	
 
 	num_aug_paths = 0;
 	// Special style bfs
@@ -189,7 +240,6 @@ int bfs_util(){
 	// 	cout << i << " " << bfs_parent[i] <<endl;
 	// }
 
-
 	if(num_aug_paths > 0){
 		update_matchings();
 	}
@@ -204,32 +254,66 @@ int main(){
     fin.open("FC_" + to_string(fc) + "_" + to_string(fc) + ".txt", ios::in);
     int u, v;
 
-    cout << "Printing all the edges: \n";
+    
 
     // Vertices with 0 edges are implicitly ignored while reading the file itself
+    // Reading edges ; Format is assumed to be u-v where u is from set 1 and v is from set 2.
     for(int i=0;i<num_edges;i++){
             fin >> u >> v;
-            cout << u << " " << v <<endl;
+            // cout << u << " " << v <<endl;
             adj_list[u].push_back(v);
             adj_list[v].push_back(u);
+    }
+    cout << "Done reading edges \n";
 
-            is_matched_edge[u].push_back(0);
-            is_matched_edge[v].push_back(0);
+    // Initialising adjacency matrix
+    // for(int i=1;i<=num_vertices1;i++){
+    // 	for(int j=num_vertices2; j<=num_vertices1 + num_vertices2; j++){
+	   //  	is_matched_edge[i].push_back(0);
+    // 	}
+    // }
+
+    // // Initialising adjacency matrix
+    // for(int i=num_vertices2;i<=num_vertices1+num_vertices2;i++){
+    // 	for(int j=1; j<=num_vertices1; j++){
+	   //  	is_matched_edge[i].push_back(0);
+    // 	}
+    // }
+
+    for(int i=1;i<=num_vertices1+num_vertices2;i++){
+    	for(int j=1;j<=num_vertices1+num_vertices2;j++){
+    		is_matched_edge[i].push_back(0);
+    	}
     }
 
+
+    initialise_partner_vertex();
+   
+    // debug();
+
+    int x = check_matching();
+    cout << "Total matches before running code: " << x << endl;
+    
     int aug_paths = bfs_util();
-    cout << "Number of augmenting paths " << aug_paths << endl;
-    // while(aug_paths>0)
-    // {	
-    // 	aug_paths = bfs_util();
-    // 	cout << "Number of augmenting paths " << aug_paths << endl;
-    // 	break;
-    // }
+    
+    cout << "Main : Number of augmenting paths " << aug_paths << endl;
+    while(aug_paths>0)
+    {	
+    	aug_paths = bfs_util();
+    	cout << "Main : Number of augmenting paths " << aug_paths << endl;
+    	break;
+    }
+
+    x = check_matching();
+    cout << "Total matches " << x << endl;
 
     cout << "BFS parents: " << endl;
     for(int i=1;i<=num_vertices1+num_vertices2; i++){
-    	cout<< i << bfs_parent[i] << endl;
+    	cout<< i << partner_vertex[i] << endl;
     }
+
+    // int total_matched = check_matching();
+    // cout << "Total number of matched vertices are: " << total_matched ;
 
 
 }
