@@ -9,9 +9,10 @@
 using namespace std;
 
 // #define num_threads 50
-#define num_edges 1000000
-#define num_vertices1 1000
-#define num_vertices2 1000
+#define num_edges 1300
+#define num_vertices1 13
+#define num_vertices2 100
+#define prob 1
 
 
 int fc = num_vertices1;
@@ -81,6 +82,13 @@ void clear_is_parent_change(){
 	for(int i=1;i<=num_vertices1+num_vertices2;i++){
 		is_parent_change[i] = 0;
 	}
+}
+
+void print_matchings(){
+	cout << "Matchings: " << endl;
+    for(int i=1;i<=num_vertices1+num_vertices2; i++){
+    	cout<< i << " " << partner_vertex[i] << endl;
+    }
 }
 
 void match_edges(int u, int v){
@@ -227,7 +235,7 @@ int bfs_util(){
 	num_aug_paths = 0;
 	// Special style bfs
 	for(int i=1;i<=num_vertices1;i++){
-		if(!visited[i]){
+		if(!visited[i] && !is_matched_vertex[i]){
 			frontier.clear();
 			frontier.push_back(i);
 			bfs(0);
@@ -251,7 +259,9 @@ int bfs_util(){
 
 int main(){
 	ifstream fin;
-    fin.open("FC_" + to_string(fc) + "_" + to_string(fc) + ".txt", ios::in);
+    // fin.open("FC_" + to_string(fc) + "_" + to_string(fc) + ".txt", ios::in);
+
+    fin.open("random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + "_" + to_string(prob) + ".txt", ios::in);
     int u, v;
 
     
@@ -266,19 +276,7 @@ int main(){
     }
     cout << "Done reading edges \n";
 
-    // Initialising adjacency matrix
-    // for(int i=1;i<=num_vertices1;i++){
-    // 	for(int j=num_vertices2; j<=num_vertices1 + num_vertices2; j++){
-	   //  	is_matched_edge[i].push_back(0);
-    // 	}
-    // }
-
-    // // Initialising adjacency matrix
-    // for(int i=num_vertices2;i<=num_vertices1+num_vertices2;i++){
-    // 	for(int j=1; j<=num_vertices1; j++){
-	   //  	is_matched_edge[i].push_back(0);
-    // 	}
-    // }
+   
 
     for(int i=1;i<=num_vertices1+num_vertices2;i++){
     	for(int j=1;j<=num_vertices1+num_vertices2+1;j++){
@@ -297,12 +295,14 @@ int main(){
     // exit(0);
 
     int aug_paths = bfs_util();
-    
     cout << "Main : Number of augmenting paths " << aug_paths << endl;
+    // print_matchings();
+
     while(aug_paths>0)
     {	
     	aug_paths = bfs_util();
     	cout << "Main : Number of augmenting paths " << aug_paths << endl;
+    	// print_matchings();
     	break;
     }
 
