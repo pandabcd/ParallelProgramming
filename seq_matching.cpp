@@ -9,10 +9,9 @@
 using namespace std;
 
 // #define num_threads 50
-#define num_edges 1300
+#define num_edges 7
 #define num_vertices1 13
-#define num_vertices2 100
-#define prob 1
+#define num_vertices2 12
 
 
 int fc = num_vertices1;
@@ -44,7 +43,7 @@ int check_matching(){
 		for(int j=0;j<adj_list[vertex].size();j++){
 			int neighbor = adj_list[vertex][j];
 			if(is_matched_edge[vertex][neighbor]){
-				cout << vertex << " " << neighbor <<endl;
+				// cout << vertex << " " << neighbor <<endl;
 				num_matched++;
 			}
 		}
@@ -261,7 +260,7 @@ int main(){
 	ifstream fin;
     // fin.open("FC_" + to_string(fc) + "_" + to_string(fc) + ".txt", ios::in);
 
-    fin.open("random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + "_" + to_string(prob) + ".txt", ios::in);
+    fin.open("random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt", ios::in);
     int u, v;
 
     
