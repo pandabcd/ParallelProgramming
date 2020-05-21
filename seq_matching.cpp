@@ -9,10 +9,19 @@
 using namespace std;
 
 // #define num_threads 50
-#define num_edges 7
-#define num_vertices1 13
-#define num_vertices2 12
+// #define num_edges 25
+// #define num_vertices1 5
+// #define num_vertices2 5
 
+// #define num_edges 700000
+// #define num_vertices1 10000
+// #define num_vertices2 10000
+
+#define int long long
+
+#define num_edges 2998468
+#define num_vertices1 100000
+#define num_vertices2 100000
 
 int fc = num_vertices1;
 	
@@ -32,7 +41,7 @@ int num_aug_paths = 0;										// Counts number of augmenting paths found
 // int matched_edges[2*num_edges]={0};
 
 vector<int> frontier;
-int aug_path_end = -1;
+// int aug_path_end = -1;
 
 // Checks if the matching is correct and also returns the total number of vertices matched
 int check_matching(){
@@ -56,7 +65,7 @@ int check_matching(){
 			exit(0);
 		}
 	}
-	return total_matched;
+	return total_matched/2;
 }
 
 void clear_visited(){
@@ -103,15 +112,19 @@ void match_edges(int u, int v){
 void unmatch_edges(int u, int v){
 	is_matched_edge[u][v] = 0;
 	is_matched_edge[v][u] = 0;
-	is_matched_vertex[u] = 0;
-	is_matched_vertex[v] = 0;
-	partner_vertex[u] = -1;
-	partner_vertex[v] = -1;
+	if(partner_vertex[u]==v){
+		is_matched_vertex[u] = 0;
+		partner_vertex[u] = -1;
+	}
+	if(partner_vertex[v]==u){
+		is_matched_vertex[v] = 0;
+		partner_vertex[v] = -1;
+	}
 }
 
 void debug(){
-	// match_edges(7,2);
-	// // match_edges(2,8);
+	match_edges(3,4);
+	// match_edges(3,5);
 	// match_edges(3,8);
 	// // match_edges(3,9);
 
@@ -134,12 +147,12 @@ void update_matchings(){
 				// cout << vertex << " " <<parent << endl;
 				if(path_length%2==1){
 					match_edges(vertex, parent);
-					// cout << "Matching " << vertex <<  " and " << parent << endl; 
+					cout << "Matching " << vertex <<  " and " << parent << endl; 
 				}
 				else{
 					unmatch_edges(vertex, parent);
 					
-					// cout << "Unmatching " << vertex <<  " and " << parent << endl;
+					cout << "Unmatching " << vertex <<  " and " << parent << endl;
 				}
 				vertex =  bfs_parent[vertex];
 				parent = bfs_parent[vertex];
@@ -163,11 +176,11 @@ void bfs(bool binary_level){
 	// cout << "Size of frontier: " << frontier.size() << endl;
 	vector<int> next_frontier;
 	if(not frontier.empty()){
-		// cout << "Frontier elements: " ;
-		// for(int i=0;i<frontier.size();i++){
-		// 	cout << frontier[i] << " ";
-		// }
-		// cout << endl;
+		cout << "Frontier elements: " ;
+		for(int i=0;i<frontier.size();i++){
+			cout << frontier[i] << " ";
+		}
+		cout << endl;
 		for(int i=0;i<frontier.size();i++){
 
 			int vertex = frontier[i];
@@ -198,12 +211,12 @@ void bfs(bool binary_level){
 						next_frontier.push_back(neighbor);
 						// If I have found a path to the next level; I have to break
 						// found_path = 1;
-						return;
+						// return;
 					}
 
 					// Changing parent change only for this node
 					else if(binary_level==0 && is_matched_edge[vertex][neighbor]==0 && is_matched_vertex[neighbor]==0){
-						// cout << "Found a aug. path with " << neighbor << " with parent: " << vertex << endl;
+						cout << "Found a aug. path with " << neighbor << " with parent: " << vertex << endl;
 						is_parent_change[neighbor] = 1;
 						num_aug_paths++ ;
 						// remove this return so that multiple paths can be found 
@@ -261,6 +274,9 @@ int main(){
     // fin.open("FC_" + to_string(fc) + "_" + to_string(fc) + ".txt", ios::in);
 
     fin.open("random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt", ios::in);
+
+
+    cout << "Check the file being read";
     int u, v;
 
     
@@ -289,7 +305,7 @@ int main(){
     // debug();
 
     int x = check_matching();
-    cout << "Total matches before running code: " << x << endl;
+    cout << "Total matches before running code: " << x/2 << endl;
     
     // exit(0);
 
@@ -305,8 +321,9 @@ int main(){
     	break;
     }
 
+    print_matchings();
     x = check_matching();
-    cout << "Total matches " << x/2 << endl;
+    cout << "Total matches " << x << endl;
 
     // cout << "Matchings: " << endl;
     // for(int i=1;i<=num_vertices1+num_vertices2; i++){

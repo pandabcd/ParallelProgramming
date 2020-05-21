@@ -16,9 +16,9 @@
 using namespace std;
 
 #define num_threads 50
-#define num_edges 25
-#define num_vertices1 5
-#define num_vertices2 5
+#define num_edges 3
+#define num_vertices1 2
+#define num_vertices2 2
 
 __device__ const int frontier_size = 5;    // Maximum of size of num_vertices1, num_vertices26h
 
@@ -31,7 +31,6 @@ __device__ unsigned int d_list_ptr[num_vertices1+num_vertices2+2];	//start indic
 
 __device__ unsigned int d_matched_vertices[num_vertices1+num_vertices2+1]={0};	// whether the vertex is matched
 __device__ unsigned int d_visited[num_vertices1+num_vertices2+1]={0};			// whether the vertex has been visited
-__device__ unsigned int d_frontier[num_vertices1+num_vertices2+1]={0};			// Is it in the frontier list?
 __device__ unsigned int d_matched_with[num_vertices1+num_vertices2+1] = {0};
 // __device__ unsigned int d_matched_edges[2*num_edges]={0};						//whether the edges is matched
 
@@ -43,18 +42,9 @@ void get_approx_matching(){
 	int vertex1 = tid + 1;	// The world is 1-indexed
 	if(vertex1<=num_vertices1){
 
-		int visited = atomicExch(&d_visited[3], 1);    
-		// printf("inside %d \n", visited);
-		// printf("[%d]Looking from %d to %d \n" ,tid, d_list_ptr[vertex], d_list_ptr[vertex+1]);
 		for(int i=d_list_ptr[vertex1];i<d_list_ptr[vertex1+1];i++){
-
-
-			// Problem in here.... You can do it :)
-			// printf("[%d]working %d \n", vertex, i);
 			int vertex2 = d_flat_adj_list[i];									// Index of connected vertex
 			int visited = atomicExch(&d_visited[vertex2], 1);    
-			// printf("Visited value of vertex %d is %d \n", v , visited);
-			
 			if(!visited)
 			{
 				printf("Pairing %d with %d  which is index %d  \n", vertex1, vertex2, i);
@@ -76,62 +66,34 @@ void clear_visited_list(){
 	int tid = blockIdx.x*1024 + threadIdx.x;
 	int vertex1 = tid + 1;
 
-	if(vertex1<=num_vertices1 + num_vertices2){
+	if(vertex1<=num_vertices1){
 		d_visited[vertex1] = 0;
 	}
 }
 
-__device__
-void clear_frontier_list(){
-	int tid = blockIdx.x*1024 + threadIdx.x;
-	int vertex1 = tid + 1;
+// __global__
+// void vertex_disjoint_bfs(){
+// 	clear_visited_list();
 
-	if(vertex1<=num_vertices1 + num_vertices2){
-		d_frontier[vertex1] = 0;
-	}
-}
+// 	int tid = blockIdx.x*1024 + threadIdx.x;
+// 	int vertex1 = tid + 1;
 
-clear_visited_list();
+// 	if(vertex1<=num_vertices1){
+// 		//If already matched
+// 		if(d_matched_vertices[vertex1]==1){
+// 			return;
+// 		}
 
-	int tid = blockIdx.x*1024 + threadIdx.x;
-	int vertex1 = tid + 1;
+// 		// If already visited by some other thread
+// 		int visited1 = atomicExch(&d_visited[vertex1], 1);
+// 		if(visited1){
+// 			return;
+// 		}
 
-	if(vertex1<=num_vertices1){
-		//If already matched
-		if(d_matched_vertices[vertex1]==1){
-			return;
-		}
-
-		// If already visited by some other thread
-		int visited1 = atomicExch(&d_visited[vertex1], 1);
-		if(visited1){
-			return;
-		}
-
-		// If not already matched and no thread has visited this
-		int frontiers[frontier_size];
-
-
-
-__global__ bfs_util(){
-	clear_visited_list();
-	clear_frontier_list();
-	// add fairness by using different indices
-	is_frontier[1] = 1;
-	num_paths = 0;
-	bfs();
-
-}
-
-__global__
-void bfs(){
-	int tid = blockIdx.x*1024 + threadIdx.x;
-	int vertex = tid + 1;
-
-	if(vertex1<=num_vertices1+num_vertices2){
-
-	}
-} 
+// 		// If not already matched and no thread has visited this
+// 		int frontiers[frontier_size];
+// 	}
+// }
 
 //Vertices are 1-indexed(0th vertex will be source in future expansions) while adjacency list is 0 indexed
 int main(){
@@ -175,7 +137,7 @@ int main(){
     	list_ptr_copy[i] = list_ptr[i];
     }
     list_ptr[num_vertices1+num_vertices2+1] = 2*num_edges;       //For easy coding
-    list_ptr_copy[num_vertices1+num_vertices2+1] = 2*num_edges;
+    list_ptr_copy[num_vertices1+num_vertices2+1] = 2*num_edges;  // list_ptr has the start of the adj list ; list_ptr_copy has the current position
 
 
 
@@ -186,10 +148,10 @@ int main(){
     	list_ptr_copy[edges_v[i]]++;
     }
 
-    cout << "Printing flat adjacency list: " << endl;
-    for(int i=0;i<2*num_edges;i++){
-    	cout << flat_adj_list[i] << endl;
-    }
+    // cout << "Printing flat adjacency list: " << endl;
+    // for(int i=0;i<2*num_edges;i++){
+    // 	cout << flat_adj_list[i] << endl;
+    // }
 
     // for(int i=list_ptr[4];i<list_ptr[5];i++){
     // 	cout << flat_adj_list[i] << endl;
@@ -203,7 +165,7 @@ int main(){
     // cout<< list_ptr[0];
     cout<<endl<<endl;
 	get_approx_matching<<<1, num_threads>>>();
-	vertex_disjoint_bfs<<<1, num_threads>>>();   // Call this inside the first kernel call only
+	// vertex_disjoint_bfs<<<1, num_threads>>>();   // Call this inside the first kernel call only
 
 	// cudaMemcpyFromSymbol(matched, d_matched, num_edges*sizeof(int), 0, cudaMemcpyDeviceToHost);
 
@@ -219,39 +181,3 @@ int main(){
 	
 	return 0;
 }
-
-
-
-// __device__
-// void clear_visited_list(){
-// 	int tid = blockIdx.x*1024 + threadIdx.x;
-// 	int vertex1 = tid + 1;
-
-// 	if(vertex1<=num_vertices1){
-// 		d_visited[vertex1] = 0;
-// 	}
-// }
-
-// __global__
-// void vertex_disjoint_bfs(){
-// 	clear_visited_list();
-
-// 	int tid = blockIdx.x*1024 + threadIdx.x;
-// 	int vertex1 = tid + 1;
-
-// 	if(vertex1<=num_vertices1){
-// 		//If already matched
-// 		if(d_matched_vertices[vertex1]==1){
-// 			return;
-// 		}
-
-// 		// If already visited by some other thread
-// 		int visited1 = atomicExch(&d_visited[vertex1], 1);
-// 		if(visited1){
-// 			return;
-// 		}
-
-// 		// If not already matched and no thread has visited this
-// 		int frontiers[frontier_size];
-// 	}
-// }

@@ -1,9 +1,9 @@
 import random
 # To simplify writing in file, we have max_num_edges
 
-s1 = 13
-s2 = 12
-prob = 0.07
+s1 = 100000
+s2 = 100000
+prob = 0.0003
 max_num_edges = int(s1*s2*prob)
 
 f = open("random_" + str(s1) + "_" + str(s2) + ".txt", "w")
