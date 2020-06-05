@@ -15,17 +15,17 @@
 
 using namespace std;
 
-#define num_threads 50
-#define num_edges 3
-#define num_vertices1 2
-#define num_vertices2 2
+#define num_threads 1000
+#define num_edges 10000
+#define num_vertices1 100
+#define num_vertices2 100
 
 __device__ const int frontier_size = 5;    // Maximum of size of num_vertices1, num_vertices26h
 
 
 // Some of these can go to constant memory, check that
 // But constant memory is 65KB while global memory is 4040MB, so there is that limitation
-__device__ unsigned int d_degree[num_vertices1+num_vertices2+1];    //degree of vertices  //Is this required?
+__device__ unsigned int d_degree[num_vertices1+num_vertices2+1];   //degree of vertices  //Is this required?
 __device__ unsigned int d_flat_adj_list[2*num_edges];				//adjacency list flattened
 __device__ unsigned int d_list_ptr[num_vertices1+num_vertices2+2];	//start indices of every vertex in adj_list
 

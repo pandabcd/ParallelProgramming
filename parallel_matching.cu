@@ -8,7 +8,7 @@
 
 using namespace std;
 
-// #define num_threads 50
+#define num_threads 10
 // #define num_edges 700000
 // #define num_vertices1 10000
 // #define num_vertices2 10000
@@ -24,24 +24,28 @@ using namespace std;
 // #define num_vertices1 100000
 // #define num_vertices2 100000
 
-const lli num_edges = 700000;
-const lli num_vertices1 = 100000;
-const lli num_vertices2 = 100000;
 
-// int h_flat_adj_list[2*num_edges];
-// int h_degree[num_vertices1+num_vertices2+1]={0};      //store degree of each vertex
-// int h_list_ptr[num_vertices1+num_vertices2+2];        //1-indexed and extra element at the end for easy size access  // Pointer to the start of adjacency list
-// int h_list_ptr_copy[num_vertices1+num_vertices2+2];    // Temporrary stuff, gotta sleep
 
-// bool h_is_matched_edge[(num_vertices1+ num_vertices2 + 1)*(num_vertices1 + num_vertices2+1)] = {0} ;     // Adjacency matrix (1-indexed)
-// bool h_is_matched_vertex[num_vertices1 + num_vertices2 + 1] = {0};	//is the vertex matched
-// int h_partner_vertex[num_vertices1 + num_vertices2 + 1];
-// int h_visited[num_vertices1 + num_vertices2 + 1] = {0};
-// int h_bfs_parent[num_vertices1 +  num_vertices2 + 1];
-// bool h_is_parent_change[num_vertices1 + num_vertices2 + 1] = {0};
+const lli num_edges = 4;
+const lli num_vertices1 = 2;
+const lli num_vertices2 = 2;
 
-// int frontier[num_vertices1 + num_vertices2+1] = {0};
-// int next_frontier[num_vertices1+num_vertices2+1] = {0};
+__device__ int d_flat_adj_list[2*num_edges];
+__device__ int d_degree[num_vertices1+num_vertices2+1]={0};      //store degree of each vertex
+__device__ int d_list_ptr[num_vertices1+num_vertices2+2];        //1-indexed and extra element at the end for easy size access  // Pointer to the start of adjacency list
+__device__ int d_list_ptr_copy[num_vertices1+num_vertices2+2];    // Temporrary stuff, gotta sleep
+
+__device__ bool d_is_matched_edge[(num_vertices1+ num_vertices2 + 1)*(num_vertices1 + num_vertices2+1)] = {0} ;     // Adjacency matrix (1-indexed)
+__device__ bool d_is_matched_vertex[num_vertices1 + num_vertices2 + 1] = {0};	//is the vertex matched
+__device__ int d_partner_vertex[num_vertices1 + num_vertices2 + 1];
+__device__ int d_visited[num_vertices1 + num_vertices2 + 1] = {0};
+__device__ int d_bfs_parent[num_vertices1 +  num_vertices2 + 1];
+__device__ bool d_is_parent_change[num_vertices1 + num_vertices2 + 1] = {0};
+
+__device__ int d_frontier[num_vertices1 + num_vertices2+1] = {0};
+__device__ int d_next_frontier[num_vertices1+num_vertices2+1] = {0};
+
+
 
 int *h_flat_adj_list;
 int *h_degree;
@@ -56,294 +60,210 @@ int *h_bfs_parent;
 bool *h_is_parent_change;
 
 int fc = num_vertices1;
-int num_aug_paths = 0;
+// int num_aug_paths = 0;
 
-int *frontier;
-int *next_frontier;
+int *h_frontier;
+int *h_next_frontier;
 
 
+__device__ 
 int get_is_matched_edge(int i, int j){
-	cout << i << " " << j << " " << i*(num_vertices1 + num_vertices2+1) + j <<  endl;
-	return h_is_matched_edge[i*(num_vertices1 + num_vertices2+1) + j ];
-	cout << "Fault " << endl;
+	return d_is_matched_edge[i*(num_vertices1 + num_vertices2+1) + j ];
 }
 
+__device__ 
 void set_is_matched_edge(int i, int j, int value){
-	h_is_matched_edge[i*(num_vertices1 + num_vertices2+1) + j ] = value;
+	d_is_matched_edge[i*(num_vertices1 + num_vertices2+1) + j ] = value;
 }
-// Checks if the matching is correct and also returns the total number of vertices matched
-int check_matching(){
-	int total_matched = 0;
-	for(int i=1;i<=num_vertices1+num_vertices2;i++){
-		int vertex = i;
-		int num_matched = 0;
-		int start_edge = h_list_ptr[vertex];
-		int end_edge = h_list_ptr[vertex+1];
-
-		for(int j=start_edge;j<end_edge;j++){
-
-			int neighbor = h_flat_adj_list[j];
-			cout << "vertex-neighbor " << vertex << " " <<neighbor <<endl;
-			if(get_is_matched_edge(vertex, neighbor)){
-				// cout << "Matched" << endl;
-				// cout << vertex << " " << neighbor <<endl;
-				num_matched++;
-			}
-		}
-		if(num_matched==1){
-			total_matched++;
-		}
-		if(num_matched>1){
-			// cout << vertex << endl;
-			// cout << "Error! Not a matching!";
-			// exit(0);
-		}
-	}
-	cout << "Matching is correct! " << endl;
-	return total_matched/2;
-}
-
+__device__
 void clear_visited(){
-	for(int i=1;i<=num_vertices1+num_vertices2;i++){
-		h_visited[i] = 0;
+	int tid = blockIdx.x*1024 + threadIdx.x;
+	int vertex1 = tid + 1;
+
+	if(vertex1<=num_vertices1 + num_vertices2){
+		d_visited[vertex1] = 0;
 	}
 }
 
+
+__device__ 
 void clear_bfs_parent(){
-	for(int i=1;i<=num_vertices1+num_vertices2;i++){
-		h_bfs_parent[i] = i;
+	int tid = blockIdx.x*1024 + threadIdx.x;
+	int vertex1 = tid + 1;
+
+	if(vertex1<=num_vertices1 + num_vertices2){
+		d_bfs_parent[vertex1] = vertex1;
 	}
 }
 
+__device__ 
 void initialise_partner_vertex(){
-	for(int i=1;i<=num_vertices1+num_vertices2;i++){
-		h_partner_vertex[i] = -1;
+	int tid = blockIdx.x*1024 + threadIdx.x;
+	int vertex1 = tid + 1;
+
+	if(vertex1<=num_vertices1 + num_vertices2){
+		d_partner_vertex[vertex1] = -1;
 	}
 }
 
+__device__ 
 void clear_is_parent_change(){
-	for(int i=1;i<=num_vertices1+num_vertices2;i++){
-		h_is_parent_change[i] = 0;
+	int tid = blockIdx.x*1024 + threadIdx.x;
+	int vertex1 = tid + 1;
+
+	if(vertex1<=num_vertices1 + num_vertices2){
+		d_is_parent_change[vertex1] = -1;
 	}
 }
 
-
-
-
-
-void print_matchings(){
-	cout << "Matchings: " << endl;
-    for(int i=1;i<=num_vertices1+num_vertices2; i++){
-    	cout<< i << " " << h_partner_vertex[i] << endl;
-    }
-}
-
-void match_edges(int u, int v){
-	// h_is_matched_edge[u][v] = 1;
-	// h_is_matched_edge[v][u] = 1;
-	// cout << "Matching " << u << " " << v << endl;	
-
-	set_is_matched_edge(u,v,1);
-	set_is_matched_edge(v,u,1);
-	h_is_matched_vertex[u] = 1;
-	h_is_matched_vertex[v] = 1;
-	h_partner_vertex[u] = v;
-	h_partner_vertex[v] = u;
-}
-
-// Unmatching edges also unmatches the vertices since the graph is a matching
-void unmatch_edges(int u, int v){
-	// h_is_matched_edge[u][v] = 0;
-	// h_is_matched_edge[v][u] = 0;
+__device__ 
+void copy_frontier(int *my_frontier, int *my_next_frontier){
 	
-
-	// cout << "UnMatching " << u << " " << v << endl;
-	set_is_matched_edge(u,v,0);
-	set_is_matched_edge(v,u,0);
-	h_is_matched_vertex[u] = 0;
-	h_is_matched_vertex[v] = 0;
-	h_partner_vertex[u] = -1;
-	h_partner_vertex[v] = -1;
-}
-
-
-void update_matchings(){
-	for(int i=1;i<=num_vertices1+num_vertices2;i++){
-		int vertex = i;
-		if(h_is_parent_change[vertex] == true){
-			
-			// cout << "Found aug. path till " << vertex << endl;
-			// There should always be odd number of vertices in aug. path
-			int path_length = 1;
-			int parent = h_bfs_parent[vertex];
-			while(parent!=vertex){
-				// cout << vertex << " " <<parent << endl;
-				if(path_length%2==1){
-					match_edges(vertex, parent);
-					// cout << "Matching " << vertex <<  " and " << parent << endl; 
-				}
-				else{
-					unmatch_edges(vertex, parent);
-					// cout << "Unmatching " << vertex <<  " and " << parent << endl;
-				}
-				vertex =  h_bfs_parent[vertex];
-				parent = h_bfs_parent[vertex];
-				path_length++;
-				// cout << vertex << " " << parent << endl;
-			}
-			
-			// cout << ". The path length is: " << path_length << endl;
-			// break;
-		}
-
-		// return here to stop after updating only one path : Important for experiments
+	for (int i=1;i<=num_vertices1+num_vertices2;i++){
+		my_frontier[i] = my_next_frontier[i];
 	}
 }
 
-
-int get_frontier_element(int ele){
-	for(int i=ele+1;i<=num_vertices1+num_vertices2+1;i++){
-		if(frontier[i]){
-			return i;
-		}
-	}
-	return -1;
-}
-
-void copy_frontier(){
-	for(int i=0;i<=num_vertices1+num_vertices2;i++){
-		frontier[i] = next_frontier[i];
-		next_frontier[i] = 0;
+__device__ 
+void clear_frontier(int *my_frontier, int *my_next_frontier ){
+	for (int i=1;i<=num_vertices1+num_vertices2;i++){
+			my_frontier[i] = 0;
+			my_next_frontier[i] = 0;
 	}
 }
+__device__
+void vertex_disjoint_bfs(int binary_level, int vertex){
+	// int frontier_element = vertex;
+	// printf("Frontier element: %d \n", frontier_element );
+	if(!d_frontier[vertex]){
+		return;
+	}
 
-void bfs(bool binary_level){
+	// my_frontier[vertex] = 1;
+	d_frontier[vertex] = 1;
 
-	// vector<int> next_frontier;
+
+	// Iterate all frontier elements
+	while(frontier_element!=-1){
 	
-	int frontier_element = get_frontier_element(0);
-	// int frontier_element = 9265;
+		int vertex = frontier_element;
+		
+		// Make this atomic
+		d_visited[vertex] = true;
+		
+		// cout << "Frontier: " << frontier_element << endl;
+		// cout << "Continuining for vertex: " << vertex << endl;
+		
+		bool found_path = false;
+		int start_edge = d_list_ptr[vertex];
+		int end_edge = d_list_ptr[vertex + 1]; 
+		
+		// cout << "Start-End edge " <<  start_edge << " " << end_edge  << endl;
+		printf ("Start-End edge %d %d \n", start_edge, end_edge);
+		for(int j=start_edge;j<end_edge;j++){
+			if(found_path)
+				break;
 
-	// cout << "Frontier: " << frontier_element << endl;
-	// if(not frontier.empty()){
-	if(frontier_element!=-1){
-		// for(int i=0;i<frontier.size();i++){
-		// Iterate all frontier elements
-		while(frontier_element!=-1){
 
-			// int vertex = frontier[i];
-			int vertex = frontier_element;
-			h_visited[vertex] = true;
+			int neighbor = d_flat_adj_list[j];
+
 			
-			cout << "Frontier: " << frontier_element << endl;
-			// cout << "Continuining for vertex: " << vertex << endl;
-			bool found_path = false;
-			int start_edge = h_list_ptr[vertex];
-			int end_edge = h_list_ptr[vertex + 1]; 
-			
-			// cout << "Start-End edge " <<  start_edge << " " << end_edge  << endl;
-			for(int j=start_edge;j<end_edge;j++){
-				if(found_path)
-					break;
 
+			int visited = atomicExch(&d_visited[neighbor], 1);
 
-				int neighbor = h_flat_adj_list[j];
+			if(!visited){
+				// We want to alternate between unmatched and matched edges, otherwise we ignore
+				d_visited[neighbor] = true;
+				// cout << "Processing: " << vertex << " " << neighbor << endl;
+				// exit(0);
+				d_bfs_parent[neighbor] = vertex;
 
-				// cout << "Vertex- neighbor " << vertex << " " << neighbor <<endl; 
+				if( binary_level==0 && get_is_matched_edge(vertex, neighbor)==0 && d_is_matched_vertex[neighbor]==1 ){
+					// next_frontier.push_back(neighbor);
+					d_next_frontier[neighbor] = 1;
+				}
 
-				if(!h_visited[neighbor]){
-					// We want to alternate between unmatched and matched edges, otherwise we ignore
-					h_visited[neighbor] = true;
-					// cout << "Processing: " << vertex << " " << neighbor << endl;
-					// exit(0);
-					h_bfs_parent[neighbor] = vertex;
+				// is_matched_vertex is implicitly true since the edge is matched
+				// In level 1, we are only interested in matched edges
+				else if( binary_level==1 && get_is_matched_edge(vertex, neighbor)==1 ){
+					// next_frontier.push_back(neighbor);
+					d_next_frontier[neighbor] = 1;
+					// If I have found a path to the next level; I have to break
+					// found_path = 1;
+					return;
+				}
 
-					if( binary_level==0 && get_is_matched_edge(vertex, neighbor)==0 && h_is_matched_vertex[neighbor]==1 ){
-						// next_frontier.push_back(neighbor);
-						next_frontier[neighbor] = 1;
-					}
-
-					// is_matched_vertex is implicitly true since the edge is matched
-					// In level 1, we are only interested in matched edges
-					else if( binary_level==1 && get_is_matched_edge(vertex, neighbor)==1 ){
-						// next_frontier.push_back(neighbor);
-						next_frontier[neighbor] = 1;
-						// If I have found a path to the next level; I have to break
-						// found_path = 1;
-						return;
-					}
-
-					// Changing parent change only for this node
-					else if(binary_level==0 && get_is_matched_edge(vertex, neighbor)==0 && h_is_matched_vertex[neighbor]==0){
-						// cout << "Found a aug. path with " << neighbor << " with parent: " << vertex << endl;
-						h_is_parent_change[neighbor] = 1;
-						num_aug_paths++ ;
-						// remove this return so that multiple paths can be found 
-						return;
-					}
+				// Changing parent change only for this node
+				else if(binary_level==0 && get_is_matched_edge(vertex, neighbor)==0 && d_is_matched_vertex[neighbor]==0){
+					// cout << "Found a aug. path with " << neighbor << " with parent: " << vertex << endl;
+					printf("Found a aug. path with %d with parent: %d \n", neighbor, vertex);
+					d_is_parent_change[neighbor] = 1;
+					// num_aug_paths++ ;
+					// remove this return so that multiple paths can be found 
+					return;
 				}
 			}
-
-			frontier_element = get_frontier_element(vertex);
 		}
-		// frontier.clear();
-		// frontier.assign(next_frontier.begin(), next_frontier.end());
-		copy_frontier();
-		bfs(binary_level = !binary_level);
+
+		// frontier_element = get_frontier_element(vertex);
+		// Getting next frontier element
+		for(int x = vertex+1; x <=num_vertices1 + num_vertices2; x++){
+			if(d_frontier[x]==1){
+				frontier_element = x;
+				break;
+			}
+		}
+		break;
 	}
+	copy_frontier(d_frontier, d_next_frontier);
+	// Only working for one level for now
+	// bfs(binary_level = !binary_level);
+
+}
+
+
+__global__
+void vertex_disjoint_bfs_util(){
 	
-}
-
-void clear_frontier(){
-	for(int i=0;i<num_vertices1+num_vertices2+1;i++){
-		frontier[i] = 0;
-	}
-}
-
-int bfs_util(){
 	clear_visited();
 	clear_bfs_parent();
 	clear_is_parent_change();
-	// frontier.clear();
-	clear_frontier();
 
+	// int *my_frontier = new int[num_vertices1+num_vertices2+1];
+	// int *my_next_frontier = new int[num_vertices1+num_vertices2+1];
+	// clear_frontier(my_frontier, my_next_frontier );
+
+	initialise_partner_vertex();
 	//Can add fairness here
 
-	num_aug_paths = 0;
+	
+	// int num_aug_paths = 1000;
 
-	// Special style bfs
-	for(int i=1;i<=num_vertices1;i++){
-		if(!h_visited[i] && !h_is_matched_vertex[i]){
-			// frontier.clear();
-			clear_frontier();
-			// frontier.push_back(i);
-			frontier[i] = 1;
-			bfs(0);
-			// cout << "Loop";
-		}
-		// break;	
+	int tid = blockIdx.x*1024 + threadIdx.x;
+	int vertex = tid+1;
+	if(vertex > num_vertices1)
+		return;
+
+	if(!d_visited[vertex] && !d_is_matched_vertex[vertex]){
+		d_frontier[vertex] = 1;
+		vertex_disjoint_bfs(0, vertex);
+		__syncthreads();
 	}
 
-	// cout << "Printing parents: " << endl;
-	// for(int i=1;i<=num_vertices2+num_vertices1;i++){
-	// 	cout << i << " " << h_bfs_parent[i] <<endl;
+	printf("Working \n" );
+
+	// if(num_aug_paths > 0){
+	// 	update_matchings();
 	// }
 
-	if(num_aug_paths > 0){
-		update_matchings();
-	}
-
-	return num_aug_paths;
-
+	// return num_aug_paths;
 }
+
 
 
 int main(){
 	h_is_matched_edge = (bool *)calloc( (num_vertices1+ num_vertices2 + 1)*(num_vertices1 + num_vertices2+1), sizeof(bool));
 
-	// cout << (num_vertices1+ num_vertices2 + 1)*(num_vertices1 + num_vertices2+1) ;
-	// cout << h_is_matched_edge[4];
-	// exit(0);
 	h_flat_adj_list = (int *)malloc(2*num_edges*sizeof(int));
 	h_degree = (int *)malloc((num_vertices1+num_vertices2+1)*sizeof(int));
 	h_list_ptr = (int *)malloc((num_vertices1+num_vertices2+2)*sizeof(int));
@@ -353,9 +273,8 @@ int main(){
 	h_visited = (int *)malloc((num_vertices1+num_vertices2+1)*sizeof(int));
 	h_bfs_parent = (int *)malloc((num_vertices1+num_vertices2+1)*sizeof(int));
 	h_is_parent_change = (bool *)malloc((num_vertices1+num_vertices2+1)*sizeof(bool));
-	frontier = (int *)malloc((num_vertices1+num_vertices2+1)*sizeof(int));
-	next_frontier = (int *)malloc((num_vertices1+num_vertices2+1)*sizeof(int));
-
+	h_frontier = (int *)malloc((num_vertices1+num_vertices2+1)*sizeof(int));
+	h_next_frontier = (int *)malloc((num_vertices1+num_vertices2+1)*sizeof(int));
 
 	// Add a check for null memory
 
@@ -364,23 +283,10 @@ int main(){
 	memset(h_is_matched_vertex, 0, num_vertices1 + num_vertices2 +1);
 	memset(h_visited, 0, num_vertices1 + num_vertices2 +1);
 	memset(h_is_parent_change, 0, num_vertices1 + num_vertices2 +1);
-	memset(frontier, 0, num_vertices1 + num_vertices2 +1);
-	memset(next_frontier, 0, num_vertices1 + num_vertices2 +1);
+	memset(h_frontier, 0, num_vertices1 + num_vertices2 +1);
+	memset(h_next_frontier, 0, num_vertices1 + num_vertices2 +1);
 
-// int h_flat_adj_list[2*num_edges];
-// int h_degree[num_vertices1+num_vertices2+1]={0};      //store degree of each vertex
-// int h_list_ptr[num_vertices1+num_vertices2+2];        //1-indexed and extra element at the end for easy size access  // Pointer to the start of adjacency list
-// int h_list_ptr_copy[num_vertices1+num_vertices2+2];    // Temporrary stuff, gotta sleep
 
-// // bool h_is_matched_edge[(num_vertices1+ num_vertices2 + 1)*(num_vertices1 + num_vertices2+1)] = {0} ;     // Adjacency matrix (1-indexed)
-
-// bool h_is_matched_vertex[num_vertices1 + num_vertices2 + 1] = {0};	//is the vertex matched
-// int h_partner_vertex[num_vertices1 + num_vertices2 + 1];
-// int h_visited[num_vertices1 + num_vertices2 + 1] = {0};
-// int h_bfs_parent[num_vertices1 +  num_vertices2 + 1];
-// bool h_is_parent_change[num_vertices1 + num_vertices2 + 1] = {0};
-
-	
 
 	// to and from of edges
 	// int h_edges_u[num_edges], h_edges_v[num_edges];			// Make this dynamic memory and free it once we have our 2 pass initialisation phase
@@ -388,11 +294,10 @@ int main(){
 	h_edges_u = (int *)malloc((num_edges)*sizeof(int));
 	h_edges_v = (int *)malloc((num_edges)*sizeof(int));
 
-	cout << " Hi" << endl;
 
 	ifstream fin;
-    // fin.open("FC_" + to_string(fc) + "_" + to_string(fc) + ".txt", ios::in);
-    fin.open("random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt", ios::in);
+    fin.open("FC_" + to_string(fc) + "_" + to_string(fc) + ".txt", ios::in);
+    // fin.open("random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt", ios::in);
     int u, v;
 
     // cout << "Printing all the edges: \n";
@@ -401,7 +306,6 @@ int main(){
     for(int i=0;i<num_edges;i++){
     		// cout << i << endl;
             fin >> u >> v;
-            // cout << u << " " << v <<endl;
             h_edges_u[i] = u;
             h_edges_v[i] = v;
             h_degree[u]++;
@@ -421,16 +325,25 @@ int main(){
     h_list_ptr[num_vertices1+num_vertices2+1] = 2*num_edges;       //For easy coding
     h_list_ptr_copy[num_vertices1+num_vertices2+1] = 2*num_edges;  // list_ptr has the start of the adj list ; list_ptr_copy has the current position
 
-    cout << "Pointer updated " << endl;
-
+    
     for(int i=0;i<num_edges;i++){
     	h_flat_adj_list[h_list_ptr_copy[h_edges_u[i]]] = h_edges_v[i];
     	h_flat_adj_list[h_list_ptr_copy[h_edges_v[i]]] = h_edges_u[i];
     	h_list_ptr_copy[h_edges_u[i]]++;
     	h_list_ptr_copy[h_edges_v[i]]++;
     }
+    
 
-    cout << "Pointer updated 2 " << endl;
+	cudaMemcpyToSymbol(d_is_matched_edge, h_is_matched_edge, (num_vertices1+ num_vertices2 + 1)*(num_vertices1 + num_vertices2+1)*sizeof(int),0,cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(d_flat_adj_list, h_flat_adj_list, 2*num_edges*sizeof(int)*sizeof(int),0,cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(d_degree, h_degree, (num_vertices1+num_vertices2+1)*sizeof(int),0,cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(d_list_ptr, h_list_ptr, (num_vertices1+num_vertices2+2)*sizeof(int),0,cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(d_is_matched_vertex, h_is_matched_vertex, (num_vertices1+num_vertices2+1)*sizeof(int),0,cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(d_visited, h_visited, (num_vertices1+num_vertices2+1)*sizeof(int),0,cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(d_frontier, h_frontier, (num_vertices1+num_vertices2+2)*sizeof(int),0,cudaMemcpyHostToDevice);
+	
+
+
 
     // for(int i=1;i<=num_vertices1+num_vertices2;i++){
     // 	for(int j=1;j<=num_vertices1+num_vertices2+1;j++){
@@ -439,8 +352,8 @@ int main(){
     // }
     // sleep(20000);
 
-    initialise_partner_vertex();
-    cout << "Partner vertex initialized " << endl;
+    // initialise_partner_vertex();
+    // cout << "Partner vertex initialized " << endl;
   	
 
   	// for(int i=1;i<=num_vertices1+num_vertices2;i++){
@@ -464,42 +377,13 @@ int main(){
 
 
     // cout << get_frontier_element(9265);
-  	int x = check_matching();
+  	// int x = check_matching();
 
   	cout << "Matching checked " << endl;
 
-    bfs_util();
-    print_matchings();
-
-
-    x = check_matching();
-    cout << "Number of matchings: " << x << endl;
-
-
-
-
-
-
-
-
-    // int x = check_matching();
-    // cout << "Total matches before running code: " << x << endl;
-    
-    
-    // int aug_paths = bfs_util();
-    // cout << "Main : Number of augmenting paths " << aug_paths << endl;
-    // // print_matchings();
-
-    // while(aug_paths>0)
-    // {	
-    // 	aug_paths = bfs_util();
-    // 	cout << "Main : Number of augmenting paths " << aug_paths << endl;
-    // 	// print_matchings();
-    // 	break;
-    // }
-
-    // x = check_matching();
-    // cout << "Total matches " << x/2 << endl;
+  	vertex_disjoint_bfs_util<<<1, num_threads>>>();
+  	cudaDeviceSynchronize();
+  
 
 
 }
