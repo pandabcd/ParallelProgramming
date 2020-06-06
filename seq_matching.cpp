@@ -17,11 +17,15 @@ using namespace std;
 // #define num_vertices1 10000
 // #define num_vertices2 10000
 
-#define int long long
+// #define int long long
 
-#define num_edges 2998468
-#define num_vertices1 100000
-#define num_vertices2 100000
+// #define num_edges 2998468
+// #define num_vertices1 100000
+// #define num_vertices2 100000
+
+#define num_edges 291
+#define num_vertices1 100
+#define num_vertices2 100
 
 int fc = num_vertices1;
 	
@@ -147,12 +151,12 @@ void update_matchings(){
 				// cout << vertex << " " <<parent << endl;
 				if(path_length%2==1){
 					match_edges(vertex, parent);
-					cout << "Matching " << vertex <<  " and " << parent << endl; 
+					// cout << "Matching " << vertex <<  " and " << parent << endl; 
 				}
 				else{
 					unmatch_edges(vertex, parent);
 					
-					cout << "Unmatching " << vertex <<  " and " << parent << endl;
+					// cout << "Unmatching " << vertex <<  " and " << parent << endl;
 				}
 				vertex =  bfs_parent[vertex];
 				parent = bfs_parent[vertex];
@@ -176,11 +180,11 @@ void bfs(bool binary_level){
 	// cout << "Size of frontier: " << frontier.size() << endl;
 	vector<int> next_frontier;
 	if(not frontier.empty()){
-		cout << "Frontier elements: " ;
-		for(int i=0;i<frontier.size();i++){
-			cout << frontier[i] << " ";
-		}
-		cout << endl;
+		// cout << "Frontier elements: " ;
+		// for(int i=0;i<frontier.size();i++){
+		// 	cout << frontier[i] << " ";
+		// }
+		// cout << endl;
 		for(int i=0;i<frontier.size();i++){
 
 			int vertex = frontier[i];
@@ -216,7 +220,7 @@ void bfs(bool binary_level){
 
 					// Changing parent change only for this node
 					else if(binary_level==0 && is_matched_edge[vertex][neighbor]==0 && is_matched_vertex[neighbor]==0){
-						cout << "Found a aug. path with " << neighbor << " with parent: " << vertex << endl;
+						// cout << "Found a aug. path with " << neighbor << " with parent: " << vertex << endl;
 						is_parent_change[neighbor] = 1;
 						num_aug_paths++ ;
 						// remove this return so that multiple paths can be found 
@@ -321,7 +325,7 @@ int main(){
     	break;
     }
 
-    print_matchings();
+    // print_matchings();
     x = check_matching();
     cout << "Total matches " << x << endl;
 
@@ -332,5 +336,5 @@ int main(){
 
     
 
-
+    return 0;
 }
