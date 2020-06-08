@@ -8,7 +8,7 @@
 
 using namespace std;
 
-#define num_threads 100
+#define num_threads 1000
 // #define num_edges 700000
 // #define num_vertices1 10000
 // #define num_vertices2 10000
@@ -26,13 +26,13 @@ using namespace std;
 
 
 
-// const lli num_edges = 1000000;
-// const lli num_vertices1 = 1000;
-// const lli num_vertices2 = 1000;
+const lli num_edges = 1000000;
+const lli num_vertices1 = 1000;
+const lli num_vertices2 = 1000;
 
-const lli num_edges = 291;
-const lli num_vertices1 = 100;
-const lli num_vertices2 = 100;
+// const lli num_edges = 291;
+// const lli num_vertices1 = 100;
+// const lli num_vertices2 = 100;
 
 __device__ int d_flat_adj_list[2*num_edges];
 __device__ int d_degree[num_vertices1+num_vertices2+1]={0};      //store degree of each vertex
@@ -398,9 +398,9 @@ int main(){
 
 
 	ifstream fin;
-    // fin.open("FC_" + to_string(fc) + "_" + to_string(fc) + ".txt", ios::in);
-    fin.open("random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt", ios::in);
-    cout << "random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt" <<endl;
+    fin.open("FC_" + to_string(fc) + "_" + to_string(fc) + ".txt", ios::in);
+    // fin.open("random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt", ios::in);
+    // cout << "random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt" <<endl;
     int u, v;
 
     // cout << "Printing all the edges: \n";
@@ -469,12 +469,12 @@ int main(){
 
   	int num_matches = check_matching();
   	
-  	print_matchings();
+  	// print_matchings();
 
   	printf("Number of matchings: %d \n", num_matches);
 
   	double elapsed = (end.tv_sec-start.tv_sec)*1000000000 + end.tv_nsec-start.tv_nsec;
-  	printf("Time elapsed %lf\n", elapsed);
+  	printf("Time elapsed %lf\n", elapsed/1e6);
 	
 
   	cudaDeviceSynchronize();

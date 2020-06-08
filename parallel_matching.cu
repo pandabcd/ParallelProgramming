@@ -5,10 +5,11 @@
 #include<fstream>
 #include<time.h>
 #include<sys/time.h>
+#include<string>
 
 using namespace std;
 
-#define num_threads 100
+#define num_threads 10000
 // #define num_edges 700000
 // #define num_vertices1 10000
 // #define num_vertices2 10000
@@ -26,20 +27,21 @@ using namespace std;
 
 
 
-// const lli num_edges = 1000000;
-// const lli num_vertices1 = 1000;
-// const lli num_vertices2 = 1000;
+const lli num_edges = 100000000;
+const lli num_vertices1 = 10000;
+const lli num_vertices2 = 10000;
 
-const lli num_edges = 291;
-const lli num_vertices1 = 100;
-const lli num_vertices2 = 100;
+// const lli num_edges = 291;
+// const lli num_vertices1 = 100;
+// const lli num_vertices2 = 100;
 
 __device__ int d_flat_adj_list[2*num_edges];
 __device__ int d_degree[num_vertices1+num_vertices2+1]={0};      //store degree of each vertex
 __device__ int d_list_ptr[num_vertices1+num_vertices2+2];        //1-indexed and extra element at the end for easy size access  // Pointer to the start of adjacency list
 __device__ int d_list_ptr_copy[num_vertices1+num_vertices2+2];    // Temporrary stuff, gotta sleep
 
-__device__ bool d_is_matched_edge[(num_vertices1+ num_vertices2 + 1)*(num_vertices1 + num_vertices2+1)] = {0} ;     // Adjacency matrix (1-indexed)
+// __device__ bool d_is_matched_edge[(num_vertices1+ num_vertices2 + 1)*(num_vertices1 + num_vertices2+1)] = {0} ;     // Adjacency matrix (1-indexed)
+__device__ bool d_matched_edge[2*num_edges];					// Tells for every edge in the list if the edge is matched or not
 __device__ bool d_is_matched_vertex[num_vertices1 + num_vertices2 + 1] = {0};	//is the vertex matched
 __device__ int d_partner_vertex[num_vertices1 + num_vertices2 + 1];
 __device__ int d_visited[num_vertices1 + num_vertices2 + 1] = {0};
@@ -58,7 +60,7 @@ int *h_degree;
 int * h_list_ptr;
 int *h_list_ptr_copy;
 
-bool *h_is_matched_edge;
+bool *h_matched_edge;
 bool *h_is_matched_vertex;
 int *h_partner_vertex;
 int *h_visited;
@@ -71,11 +73,54 @@ int fc = num_vertices1;
 int *h_frontier;
 int *h_next_frontier;
 
-
-__device__ 
-int get_is_matched_edge(int i, int j){
-	return d_is_matched_edge[i*(num_vertices1 + num_vertices2+1) + j ];
+__device__
+bool get_matched_edge(int x, int y){
+	int vertex = x;
+	int start_edge = d_list_ptr[vertex];
+	int end_edge = d_list_ptr[vertex + 1]; 
+	for(int i = start_edge; i<end_edge;i++){
+		if(d_flat_adj_list[i]==y){
+			return d_matched_edge[i];
+		}
+	}
+	printf("Error! Querying for an edge which is not present \n");
+	return -1;
 }
+
+__device__
+void set_matched_edge(int x, int y, int value){
+	bool edge_present = false;
+	int vertex = x;
+	int start_edge = d_list_ptr[vertex];
+	int end_edge = d_list_ptr[vertex + 1]; 
+	for(int i = start_edge; i<end_edge;i++){
+		if(d_flat_adj_list[i] == y){
+			d_matched_edge[i] = value;
+			edge_present = true;
+			break;
+		}
+	}
+	
+	vertex = y;
+	start_edge = d_list_ptr[vertex];
+	end_edge = d_list_ptr[vertex + 1]; 
+	for(int i = start_edge; i<end_edge;i++){
+		if(d_flat_adj_list[i] == x){
+			d_matched_edge[i] = value;
+			edge_present = true;
+			break;
+		}
+	}
+
+	if(!edge_present){
+		printf("Error! Querying for an edge which is not present \n");
+	}
+}
+
+// __device__ 
+// int get_is_matched_edge(int i, int j){
+// 	return d_is_matched_edge[i*(num_vertices1 + num_vertices2+1) + j ];
+// }
 
 void print_matchings(){
 	cout << "Matchings: " << endl;
@@ -84,19 +129,28 @@ void print_matchings(){
     }
 }
 
-int get_is_matched_edge_h(int i, int j){
-	return h_is_matched_edge[i*(num_vertices1 + num_vertices2+1) + j ];
+int get_matched_edge_h(int x, int y){
+	int vertex = x;
+	int start_edge = h_list_ptr[vertex];
+	int end_edge = h_list_ptr[vertex + 1]; 
+	for(int i = start_edge; i<end_edge;i++){
+		if(h_flat_adj_list[i] == y){
+			return h_matched_edge[i];
+		}
+	}
+	cout << "Error! Querying for an edge which is not present";
+	exit(0);
 }
 
-__device__ 
-void set_is_matched_edge(int i, int j, int value){
-	d_is_matched_edge[i*(num_vertices1 + num_vertices2+1) + j ] = value;
-}
+// __device__ 
+// void set_is_matched_edge(int i, int j, int value){
+// 	d_is_matched_edge[i*(num_vertices1 + num_vertices2+1) + j ] = value;
+// }
 
 __device__
 void match_edges(int u, int v){
-	set_is_matched_edge(u,v,1);
-	set_is_matched_edge(v,u,1);
+	set_matched_edge(u,v,1);
+	set_matched_edge(v,u,1);
 	d_is_matched_vertex[u] = 1;
 	d_is_matched_vertex[v] = 1;
 	d_partner_vertex[u] = v;
@@ -107,8 +161,8 @@ void match_edges(int u, int v){
 // Unmatching edges also unmatches the vertices since the graph is a matching
 __device__
 void unmatch_edges(int u, int v){
-	set_is_matched_edge(u,v,0);
-	set_is_matched_edge(v,u,0);
+	set_matched_edge(u,v,0);
+	set_matched_edge(v,u,0);
 	if(d_partner_vertex[u]==v){
 		d_is_matched_vertex[u] = 0;
 		d_partner_vertex[u] = -1;
@@ -254,14 +308,14 @@ void vertex_disjoint_bfs(int binary_level, int vertex, int tid){
 				// exit(0);
 				d_bfs_parent[neighbor] = vertex;
 
-				if( binary_level==0 && get_is_matched_edge(vertex, neighbor)==0 && d_is_matched_vertex[neighbor]==1 ){
+				if( binary_level==0 && get_matched_edge(vertex, neighbor)==0 && d_is_matched_vertex[neighbor]==1 ){
 					// next_frontier.push_back(neighbor);
 					d_next_frontier[neighbor] = 1;
 				}
 
 				// is_matched_vertex is implicitly true since the edge is matched
 				// In level 1, we are only interested in matched edges
-				else if( binary_level==1 && get_is_matched_edge(vertex, neighbor)==1 ){
+				else if( binary_level==1 && get_matched_edge(vertex, neighbor)==1 ){
 					// next_frontier.push_back(neighbor);
 					d_next_frontier[neighbor] = 1;
 					// If I have found a path to the next level; I have to break
@@ -270,7 +324,7 @@ void vertex_disjoint_bfs(int binary_level, int vertex, int tid){
 				}
 
 				// Changing parent change only for this node
-				else if(binary_level==0 && get_is_matched_edge(vertex, neighbor)==0 && d_is_matched_vertex[neighbor]==0){
+				else if(binary_level==0 && get_matched_edge(vertex, neighbor)==0 && d_is_matched_vertex[neighbor]==0){
 					// printf("Found a aug. path with %d with parent: %d \n", neighbor, vertex);
 					d_is_parent_change[neighbor] = 1;
 					num_aug_paths++ ;
@@ -341,7 +395,7 @@ int check_matching(){
 		for(int j=h_list_ptr[i];j<h_list_ptr[i+1];j++){
 			int neighbor = h_flat_adj_list[j];
 			// cout << vertex << " " << neighbor << endl;
-			if(get_is_matched_edge_h(vertex, neighbor)){
+			if(get_matched_edge_h(vertex, neighbor)){
 				num_matched++;
 			}
 		}
@@ -362,10 +416,13 @@ int check_matching(){
 
 
 int main(){
+
 	struct timespec start, end;
 
-	h_is_matched_edge = (bool *)calloc( (num_vertices1+ num_vertices2 + 1)*(num_vertices1 + num_vertices2+1), sizeof(bool));
+	// h_is_matched_edge = (bool *)calloc( (num_vertices1+ num_vertices2 + 1)*(num_vertices1 + num_vertices2+1), sizeof(bool));
 
+	h_matched_edge = (bool *)calloc(2*num_edges, sizeof(bool));
+	
 	h_flat_adj_list = (int *)malloc(2*num_edges*sizeof(int));
 	h_degree = (int *)malloc((num_vertices1+num_vertices2+1)*sizeof(int));
 	h_list_ptr = (int *)malloc((num_vertices1+num_vertices2+2)*sizeof(int));
@@ -398,9 +455,10 @@ int main(){
 
 
 	ifstream fin;
-    // fin.open("FC_" + to_string(fc) + "_" + to_string(fc) + ".txt", ios::in);
-    fin.open("random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt", ios::in);
-    cout << "random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt" <<endl;
+	// string fileName = "FC_1000_1000.txt"; 
+    fin.open("FC_1000_1000.txt", ios::in);
+    // fin.open("random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt", ios::in);
+    // cout << "random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt" <<endl;
     int u, v;
 
     // cout << "Printing all the edges: \n";
@@ -439,28 +497,21 @@ int main(){
 
     clock_gettime( CLOCK_REALTIME,&start);
 
-	cudaMemcpyToSymbol(d_is_matched_edge, h_is_matched_edge, (num_vertices1+ num_vertices2 + 1)*(num_vertices1 + num_vertices2+1)*sizeof(int),0,cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(d_matched_edge, h_matched_edge, (2*num_edges)*sizeof(int),0,cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol(d_flat_adj_list, h_flat_adj_list, 2*num_edges*sizeof(int),0,cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol(d_degree, h_degree, (num_vertices1+num_vertices2+1)*sizeof(int),0,cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol(d_list_ptr, h_list_ptr, (num_vertices1+num_vertices2+2)*sizeof(int),0,cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol(d_is_matched_vertex, h_is_matched_vertex, (num_vertices1+num_vertices2+1)*sizeof(int),0,cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol(d_visited, h_visited, (num_vertices1+num_vertices2+1)*sizeof(int),0,cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol(d_frontier, h_frontier, (num_vertices1+num_vertices2+2)*sizeof(int),0,cudaMemcpyHostToDevice);
-	
-	// cudaMemcpy(d_is_matched_edge, h_is_matched_edge, (num_vertices1+ num_vertices2 + 1)*(num_vertices1 + num_vertices2+1)*sizeof(int),cudaMemcpyHostToDevice);
-	// cudaMemcpy(d_flat_adj_list, h_flat_adj_list, 2*num_edges*sizeof(int),cudaMemcpyHostToDevice);
-	// cudaMemcpy(d_degree, h_degree, (num_vertices1+num_vertices2+1)*sizeof(int),cudaMemcpyHostToDevice);
-	// cudaMemcpy(d_list_ptr, h_list_ptr, (num_vertices1+num_vertices2+2)*sizeof(int),cudaMemcpyHostToDevice);
-	// cudaMemcpy(d_is_matched_vertex, h_is_matched_vertex, (num_vertices1+num_vertices2+1)*sizeof(int),cudaMemcpyHostToDevice);
-	// cudaMemcpy(d_visited, h_visited, (num_vertices1+num_vertices2+1)*sizeof(int),cudaMemcpyHostToDevice);
-	// cudaMemcpy(d_frontier, h_frontier, (num_vertices1+num_vertices2+2)*sizeof(int),cudaMemcpyHostToDevice);
-
 
   	cudaDeviceSynchronize();
+
   	vertex_disjoint_bfs_util<<<1, num_threads>>>();
+
 // 1219611
   	cudaDeviceSynchronize();
-  	cudaError_t bla = cudaMemcpyFromSymbol(h_is_matched_edge, d_is_matched_edge, sizeof(d_is_matched_edge),0,cudaMemcpyDeviceToHost);
+  	cudaError_t bla = cudaMemcpyFromSymbol(h_matched_edge, d_matched_edge, sizeof(d_matched_edge),0,cudaMemcpyDeviceToHost);
   	cudaMemcpyFromSymbol(h_partner_vertex, d_partner_vertex, sizeof(d_partner_vertex),0,cudaMemcpyDeviceToHost);
   	
   	clock_gettime( CLOCK_REALTIME,&end);
@@ -468,13 +519,13 @@ int main(){
   
 
   	int num_matches = check_matching();
-  	
-  	print_matchings();
+  	// exit(0);
+  	// print_matchings();
 
   	printf("Number of matchings: %d \n", num_matches);
 
   	double elapsed = (end.tv_sec-start.tv_sec)*1000000000 + end.tv_nsec-start.tv_nsec;
-  	printf("Time elapsed %lf\n", elapsed);
+  	printf("Time elapsed %lf\n", elapsed/1e6);
 	
 
   	cudaDeviceSynchronize();
