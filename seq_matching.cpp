@@ -325,7 +325,7 @@ int main(){
     	break;
     }
 
-    // print_matchings();
+    print_matchings();
     x = check_matching();
     cout << "Total matches " << x << endl;
 

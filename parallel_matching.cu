@@ -1,10 +1,10 @@
 #include<iostream>
 #include<stdio.h>
 #include<stdlib.h>
-#include<stdio.h>
 #include<math.h>
 #include<fstream>
-#include<vector>
+#include<time.h>
+#include<sys/time.h>
 
 using namespace std;
 
@@ -75,6 +75,13 @@ int *h_next_frontier;
 __device__ 
 int get_is_matched_edge(int i, int j){
 	return d_is_matched_edge[i*(num_vertices1 + num_vertices2+1) + j ];
+}
+
+void print_matchings(){
+	cout << "Matchings: " << endl;
+    for(int i=1;i<=num_vertices1+num_vertices2; i++){
+    	cout<< i << " " << h_partner_vertex[i] << endl;
+    }
 }
 
 int get_is_matched_edge_h(int i, int j){
@@ -355,6 +362,8 @@ int check_matching(){
 
 
 int main(){
+	struct timespec start, end;
+
 	h_is_matched_edge = (bool *)calloc( (num_vertices1+ num_vertices2 + 1)*(num_vertices1 + num_vertices2+1), sizeof(bool));
 
 	h_flat_adj_list = (int *)malloc(2*num_edges*sizeof(int));
@@ -427,6 +436,9 @@ int main(){
     	h_list_ptr_copy[h_edges_v[i]]++;
     }
     
+
+    clock_gettime( CLOCK_REALTIME,&start);
+
 	cudaMemcpyToSymbol(d_is_matched_edge, h_is_matched_edge, (num_vertices1+ num_vertices2 + 1)*(num_vertices1 + num_vertices2+1)*sizeof(int),0,cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol(d_flat_adj_list, h_flat_adj_list, 2*num_edges*sizeof(int),0,cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol(d_degree, h_degree, (num_vertices1+num_vertices2+1)*sizeof(int),0,cudaMemcpyHostToDevice);
@@ -450,18 +462,21 @@ int main(){
   	cudaDeviceSynchronize();
   	cudaError_t bla = cudaMemcpyFromSymbol(h_is_matched_edge, d_is_matched_edge, sizeof(d_is_matched_edge),0,cudaMemcpyDeviceToHost);
   	cudaMemcpyFromSymbol(h_partner_vertex, d_partner_vertex, sizeof(d_partner_vertex),0,cudaMemcpyDeviceToHost);
+  	
+  	clock_gettime( CLOCK_REALTIME,&end);
   	cudaDeviceSynchronize();
   
 
-  	// for(int i=0;i<=neighborum_vertices1+num_vertices2;i++){
-  	// 	cout << h_partner_vertex[i] << endl;
-  	// }
-  	// for(int i=0;i<)
-
   	int num_matches = check_matching();
-  	printf("Number of matchings: %d", num_matches);
+  	
+  	print_matchings();
 
+  	printf("Number of matchings: %d \n", num_matches);
+
+  	double elapsed = (end.tv_sec-start.tv_sec)*1000000000 + end.tv_nsec-start.tv_nsec;
+  	printf("Time elapsed %lf\n", elapsed);
 	
+
   	cudaDeviceSynchronize();
   
 
