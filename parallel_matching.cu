@@ -207,8 +207,9 @@ void unmatch_edges(int u, int v){
 }
 
 // Make this parallel
-__device__
-void update_matchings(int tid){
+__global__
+void update_matchings(){
+	int tid = blockIdx.x*1024 + threadIdx.x;
 	for(int i=tid; i<=num_vertices1+num_vertices2; i+=num_vertices1){
 		int vertex = i;
 		if(d_is_parent_change[vertex] == true){
@@ -424,9 +425,9 @@ void vertex_disjoint_bfs_util(){
 			vertex_disjoint_bfs(0, vertex, tid);
 		}
 
-		if(num_aug_paths > 0){
-			update_matchings(vertex);
-		}
+		// if(num_aug_paths > 0){
+		// 	update_matchings(vertex);
+		// }
 		// else{
 		// 	break;
 		// }
@@ -568,7 +569,7 @@ int main(){
   		cudaMemcpyToSymbol(num_aug_paths, &h_num_aug_paths, (1)*sizeof(int),0,cudaMemcpyHostToDevice);
 	  	
 	  	vertex_disjoint_bfs_util<<<10, 1024>>>();
-
+	  	update_matchings<<<10, 1024>>>();
 	 //  	gpuErrchk( cudaPeekAtLastError() );
 		// gpuErrchk( cudaDeviceSynchronize() );
 
