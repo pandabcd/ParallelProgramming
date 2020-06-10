@@ -9,39 +9,53 @@
 
 using namespace std;
 
-#define num_threads 1000
-// #define num_edges 700000
-// #define num_vertices1 10000
-// #define num_vertices2 10000
-
-// #define num_edges 1000000
-// #define num_vertices1 1000
-// #define num_vertices2 1000
-
+// #define num_threads 1000
 
 #define lli long long int
 
-// const lli num_edges = 2998468;
-// const lli num_vertices1 = 100000;
-// const lli num_vertices2 = 100000;
+// const lli num_edges = 200;
+// const lli num_vertices1 = 100;
+// const lli num_vertices2 = 100;
 
-const lli num_edges = 1000000;
-const lli num_vertices1 = 1000;
-const lli num_vertices2 = 1000;
+// const lli num_edges = 447;
+// const lli num_vertices1 = 500;
+// const lli num_vertices2 = 500;
 
-// const lli num_edges = 700000;
+// const lli num_edges = 1969;
+// const lli num_vertices1 = 1000;
+// const lli num_vertices2 = 1000;
+
+// const lli num_edges = 4991;
+// const lli num_vertices1 = 5000;
+// const lli num_vertices2 = 5000;
+
+// const lli num_edges = 200001;
 // const lli num_vertices1 = 10000;
 // const lli num_vertices2 = 10000;
 
-
-
-// const lli num_edges = 291;
+// const lli num_edges = 800;
 // const lli num_vertices1 = 100;
 // const lli num_vertices2 = 100;
 
-// const lli num_edges = 291;
+// const lli num_edges = 200;
 // const lli num_vertices1 = 100;
 // const lli num_vertices2 = 100;
+
+// const lli num_edges = 20000;
+// const lli num_vertices1 = 500;
+// const lli num_vertices2 = 500;
+
+// const lli num_edges = 79580;
+// const lli num_vertices1 = 1000;
+// const lli num_vertices2 = 1000;
+
+// const lli num_edges = 1999218;
+// const lli num_vertices1 = 5000;
+// const lli num_vertices2 = 5000;
+
+const lli num_edges = 8000000;
+const lli num_vertices1 = 10000;
+const lli num_vertices2 = 10000;
 
 __device__ int d_flat_adj_list[2*num_edges];
 __device__ int d_degree[num_vertices1+num_vertices2+1]={0};      //store degree of each vertex
@@ -194,8 +208,8 @@ void unmatch_edges(int u, int v){
 
 // Make this parallel
 __device__
-void update_matchings(){
-	for(int i=1; i<=num_vertices1+num_vertices2; i++){
+void update_matchings(int tid){
+	for(int i=tid; i<=num_vertices1+num_vertices2; i+=num_vertices1){
 		int vertex = i;
 		if(d_is_parent_change[vertex] == true){
 			
@@ -368,9 +382,9 @@ void vertex_disjoint_bfs(int binary_level, int vertex, int tid){
 		// 	}
 		// }
 	}
-	copy_frontier(d_frontier, d_next_frontier);
+	// copy_frontier(d_frontier, d_next_frontier);
 	// Only working for one level for now
-	vertex_disjoint_bfs(!binary_level, vertex, tid);
+	// vertex_disjoint_bfs(!binary_level, vertex, tid);
 
 }
 
@@ -411,7 +425,7 @@ void vertex_disjoint_bfs_util(){
 		}
 
 		if(num_aug_paths > 0){
-			update_matchings();
+			update_matchings(vertex);
 		}
 		// else{
 		// 	break;
@@ -494,8 +508,8 @@ int main(){
 
 	ifstream fin;
 	// string fileName = "FC_1000_1000.txt"; 
-    // fin.open("random_100000_100000.txt", ios::in);
-    fin.open("FC_1000_1000.txt", ios::in);
+    fin.open("random_10000_10000_high.txt", ios::in);
+    // fin.open("FC_1000_1000.txt", ios::in);
     // fin.open("random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt", ios::in);
     // cout << "random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt" <<endl;
     int u, v;
@@ -560,17 +574,18 @@ int main(){
 
 
 	  	cudaDeviceSynchronize();
-	  	cudaMemcpyFromSymbol(h_matched_edge, d_matched_edge, sizeof(d_matched_edge),0,cudaMemcpyDeviceToHost);
-	  	cudaMemcpyFromSymbol(h_partner_vertex, d_partner_vertex, sizeof(d_partner_vertex),0,cudaMemcpyDeviceToHost);
 	  	
-	  	cudaMemcpyFromSymbol(&h_num_aug_paths, num_aug_paths, sizeof(num_aug_paths),0,cudaMemcpyDeviceToHost);
 
-	  	printf("Number of augmenting paths(actual number may be higher): %d \n", h_num_aug_paths);
-	  	break;
+	  	
+	  	// break;
 	}
   	clock_gettime( CLOCK_REALTIME,&end);
   	
-  
+  	cudaMemcpyFromSymbol(h_matched_edge, d_matched_edge, sizeof(d_matched_edge),0,cudaMemcpyDeviceToHost);
+	  	cudaMemcpyFromSymbol(h_partner_vertex, d_partner_vertex, sizeof(d_partner_vertex),0,cudaMemcpyDeviceToHost);
+	  	
+	  	cudaMemcpyFromSymbol(&h_num_aug_paths, num_aug_paths, sizeof(num_aug_paths),0,cudaMemcpyDeviceToHost);
+  printf("Number of augmenting paths(actual number may be higher): %d \n", h_num_aug_paths);
 
   	int num_matches = check_matching();
   	// exit(0);
