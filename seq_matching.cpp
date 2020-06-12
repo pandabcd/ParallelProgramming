@@ -12,28 +12,49 @@ using namespace std;
 // g++ seq_matching.cpp -o seq -lrt
 // ./seq
 
-// #define num_threads 50
-// #define num_edges 25
-// #define num_vertices1 5
-// #define num_vertices2 5
 
-// #define num_edges 700000
-// #define num_vertices1 10000
-// #define num_vertices2 10000
-
-// #define int long long
-
-// #define num_edges 2998468
-// #define num_vertices1 100000
-// #define num_vertices2 100000
-
-// #define num_edges 291
+// #define num_edges 200
 // #define num_vertices1 100
 // #define num_vertices2 100
 
-#define num_edges 10000000
+// #define num_edges 447
+// #define num_vertices1 500
+// #define num_vertices2 500
+
+// #define num_edges 1969
+// #define num_vertices1 1000
+// #define num_vertices2 1000
+
+// #define num_edges 4991
+// #define num_vertices1 5000
+// #define num_vertices2 5000
+
+// #define num_edges 200001
+// #define num_vertices1 10000
+// #define num_vertices2 10000
+
+// #define num_edges 200
+// #define num_vertices1 100
+// #define num_vertices2 100
+
+// #define num_edges 20000
+// #define num_vertices1 500
+// #define num_vertices2 500
+
+// #define num_edges 79580
+// #define num_vertices1 1000
+// #define num_vertices2 1000
+
+// #define num_edges 1999218
+// #define num_vertices1 5000
+// #define num_vertices2 5000
+
+#define num_edges 8000000
 #define num_vertices1 10000
 #define num_vertices2 10000
+
+
+
 
 int fc = num_vertices1;
 	
@@ -63,8 +84,8 @@ int check_matching(){
 		int num_matched = 0;
 		for(int j=0;j<adj_list[vertex].size();j++){
 			int neighbor = adj_list[vertex][j];
-			if(is_matched_edge[vertex][neighbor]){
-				// cout << vertex << " " << neighbor <<endl;
+			// if(is_matched_edge[vertex][neighbor]){
+			if(is_matched_edge[vertex][j]){
 				num_matched++;
 			}
 		}
@@ -111,9 +132,37 @@ void print_matchings(){
     }
 }
 
+void set_matched_edge(int u, int v, int value){
+
+	bool edge_present = false;
+	// Set in xs list
+	int vertex = u;
+	for(int i=0;i<is_matched_edge[vertex].size();i++){
+		if(adj_list[vertex][i] == v){
+			is_matched_edge[vertex][i] = value;
+			edge_present = true;
+		}
+	}
+
+	// set in ys d_list_ptr
+	vertex = v;
+	for(int i=0;i<is_matched_edge[vertex].size();i++){
+		if(adj_list[vertex][i] == u){
+			is_matched_edge[vertex][i] = value;
+			edge_present = true;
+		}
+	}
+
+	if(!edge_present){
+		printf("Error! Querying for an edge which is not present \n");
+	}
+}
+
 void match_edges(int u, int v){
-	is_matched_edge[u][v] = 1;
-	is_matched_edge[v][u] = 1;
+	// is_matched_edge[u][v] = 1;
+	// is_matched_edge[v][u] = 1;
+	set_matched_edge(u,v,1);
+	set_matched_edge(v,u,1);
 	is_matched_vertex[u] = 1;
 	is_matched_vertex[v] = 1;
 	partner_vertex[u] = v;
@@ -122,8 +171,10 @@ void match_edges(int u, int v){
 
 // Unmatching edges also unmatches the vertices since the graph is a matching
 void unmatch_edges(int u, int v){
-	is_matched_edge[u][v] = 0;
-	is_matched_edge[v][u] = 0;
+	// is_matched_edge[u][v] = 0;
+	// is_matched_edge[v][u] = 0;
+	set_matched_edge(u,v,0);
+	set_matched_edge(v,u,0);
 	if(partner_vertex[u]==v){
 		is_matched_vertex[u] = 0;
 		partner_vertex[u] = -1;
@@ -135,7 +186,7 @@ void unmatch_edges(int u, int v){
 }
 
 void debug(){
-	match_edges(3,4);
+	// match_edges(3,4);
 	// match_edges(3,5);
 	// match_edges(3,8);
 	// // match_edges(3,9);
@@ -213,13 +264,13 @@ void bfs(bool binary_level){
 
 					bfs_parent[neighbor] = vertex;
 
-					if( binary_level==0 && is_matched_edge[vertex][neighbor]==0 && is_matched_vertex[neighbor]==1 ){
+					if( binary_level==0 && is_matched_edge[vertex][j]==0 && is_matched_vertex[neighbor]==1 ){
 						next_frontier.push_back(neighbor);
 					}
 
 					// is_matched_vertex is implicitly true since the edge is matched
 					// In level 1, we are only interested in matched edges
-					else if( binary_level==1 && is_matched_edge[vertex][neighbor]==1 ){
+					else if( binary_level==1 && is_matched_edge[vertex][j]==1 ){
 						next_frontier.push_back(neighbor);
 						// If I have found a path to the next level; I have to break
 						// found_path = 1;
@@ -227,7 +278,7 @@ void bfs(bool binary_level){
 					}
 
 					// Changing parent change only for this node
-					else if(binary_level==0 && is_matched_edge[vertex][neighbor]==0 && is_matched_vertex[neighbor]==0){
+					else if(binary_level==0 && is_matched_edge[vertex][j]==0 && is_matched_vertex[neighbor]==0){
 						// cout << "Found a aug. path with " << neighbor << " with parent: " << vertex << endl;
 						is_parent_change[neighbor] = 1;
 						num_aug_paths++ ;
@@ -284,7 +335,8 @@ int bfs_util(){
 int main(){
 	struct timespec start, end;
 	ifstream fin;
-    fin.open("FC_10000_10000.txt", ios::in);
+    // fin.open("FC_500_500.txt", ios::in);
+    fin.open("random_10000_10000_high.txt", ios::in);
 
     // fin.open("random_" + to_string(num_vertices1) + "_" + to_string(num_vertices2) + ".txt", ios::in);
 
@@ -301,16 +353,18 @@ int main(){
             // cout << u << " " << v <<endl;
             adj_list[u].push_back(v);
             adj_list[v].push_back(u);
+            is_matched_edge[u].push_back(0);
+            is_matched_edge[v].push_back(0);
     }
     cout << "Done reading edges \n";
 
    
 	clock_gettime( CLOCK_REALTIME,&start);
-    for(int i=1;i<=num_vertices1+num_vertices2;i++){
-    	for(int j=1;j<=num_vertices1+num_vertices2+1;j++){
-    		is_matched_edge[i].push_back(0);
-    	}
-    }
+    // for(int i=1;i<=num_vertices1+num_vertices2;i++){
+    // 	for(int j=1;j<=num_vertices1+num_vertices2+1;j++){
+    // 		is_matched_edge[i].push_back(0);
+    // 	}
+    // }
 
 
     initialise_partner_vertex();
